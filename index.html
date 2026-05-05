@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>7-11 即期品管理</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
+
+<style>
+  :root {
+    --bg: #0f0f1a;
+    --surface: #1a1a2e;
+    --surface2: #22223b;
+    --border: #2e2e4a;
+    --accent: #ff6b35;
+    --accent2: #ffd166;
+    --green: #06d6a0;
+    --red: #ef233c;
+    --orange: #fb8500;
+    --text: #f0eff4;
+    --text2: #a0a0c0;
+    --text3: #6060a0;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 15px;
+    overflow-x: hidden;
+  }
+
+  /* ── App Shell ── */
+  #app {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* ── Header ── */
+  .app-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(20px);
+  }
+  .app-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-badge {
+    width: 34px; height: 34px;
+    background: var(--accent);
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    font-size: 11px;
+    color: white;
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+    text-align: center;
+  }
+  .app-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .app-subtitle {
+    font-size: 11px;
+    color: var(--text2);
+    margin-top: 1px;
+  }
+  .notif-btn {
+    width: 36px; height: 36px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+  }
+  .notif-btn:hover { background: var(--border); }
+  .notif-dot {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    position: absolute;
+    top: 6px; right: 6px;
+    display: none;
+  }
+  .notif-dot.active { display: block; }
+
+  /* ── Bottom Nav ── */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 480px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 100;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 0 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    gap: 4px;
+    color: var(--text3);
+    font-size: 11px;
+    font-weight: 500;
+    border: none;
+    background: none;
+  }
+  .nav-item.active { color: var(--accent); }
+  .nav-item svg { transition: transform 0.2s; }
+  .nav-item.active svg { transform: scale(1.1); }
+  .nav-icon {
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── Page Container ── */
+  .page {
+    flex: 1;
+    padding: 16px 16px 100px;
+    display: none;
+    animation: fadeUp 0.3s ease;
+  }
+  .page.active { display: block; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text2);
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+
+  /* ── Section Label ── */
+  .section-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text3);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin: 20px 0 10px;
+  }
+
+  /* ── Stats Row ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .stat-card:hover { border-color: var(--accent); }
+  .stat-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 24px;
+    font-weight: 500;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-label { font-size: 11px; color: var(--text2); }
+  .stat-card.urgent .stat-num { color: var(--red); }
+  .stat-card.soon .stat-num { color: var(--orange); }
+  .stat-card.ok .stat-num { color: var(--green); }
+
+  /* ── Product Item ── */
+  .product-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+  .product-item:last-child { border-bottom: none; }
+  .product-item:hover { opacity: 0.85; }
+  .product-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    font-weight: 600;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+  }
+  .product-info { flex: 1; min-width: 0; }
+  .product-name {
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 3px;
+  }
+  .product-meta {
+    font-size: 12px;
+    color: var(--text2);
+  }
+  .expiry-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    flex-shrink: 0;
+    text-align: center;
+  }
+  .badge-urgent { background: rgba(239,35,60,0.2); color: var(--red); border: 1px solid rgba(239,35,60,0.3); }
+  .badge-soon { background: rgba(251,133,0,0.2); color: var(--orange); border: 1px solid rgba(251,133,0,0.3); }
+  .badge-ok { background: rgba(6,214,160,0.15); color: var(--green); border: 1px solid rgba(6,214,160,0.25); }
+  .badge-expired { background: rgba(100,100,100,0.2); color: var(--text3); border: 1px solid var(--border); text-decoration: line-through; }
+
+  /* ── Fab Button ── */
+  .fab {
+    position: fixed;
+    bottom: 80px; right: 50%;
+    transform: translateX(calc(50% + 150px));
+    width: 54px; height: 54px;
+    background: linear-gradient(135deg, var(--accent), #ff9f1c);
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px rgba(255,107,53,0.4);
+    cursor: pointer;
+    z-index: 99;
+    border: none;
+    transition: all 0.2s;
+  }
+  .fab:hover { transform: translateX(calc(50% + 150px)) scale(1.05); }
+  .fab:active { transform: translateX(calc(50% + 150px)) scale(0.96); }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(8px);
+    z-index: 200;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px 24px 0 0;
+    width: 100%; max-width: 480px;
+    padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+    animation: slideUp 0.3s cubic-bezier(0.32,0.72,0,1);
+    max-height: 95vh;
+    overflow-y: auto;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .modal-handle {
+    width: 36px; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto 20px;
+  }
+  .modal-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 20px;
+  }
+
+  /* ── Form ── */
+  .form-group { margin-bottom: 16px; }
+  .form-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text2);
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    display: block;
+  }
+  .form-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 15px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  .form-input::placeholder { color: var(--text3); }
+  .category-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .cat-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 6px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--text2);
+    font-family: 'Noto Sans TC', sans-serif;
+    transition: all 0.2s;
+  }
+  .cat-btn.selected {
+    background: rgba(255,107,53,0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .cat-icon { font-size: 18px; margin-bottom: 4px; display: block; }
+
+  /* ── Button ── */
+  .btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: var(--radius-sm);
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #ff9f1c);
+    color: white;
+    box-shadow: 0 4px 15px rgba(255,107,53,0.3);
+  }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-secondary {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    margin-top: 8px;
+  }
+  .btn-danger {
+    background: rgba(239,35,60,0.1);
+    border: 1px solid rgba(239,35,60,0.3);
+    color: var(--red);
+    margin-top: 8px;
+  }
+
+  /* ── Scan Page ── */
+  .scan-area {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    position: relative;
+    aspect-ratio: 4/3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+  #scan-video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: none;
+  }
+  .scan-idle {
+    text-align: center;
+    padding: 30px;
+    color: var(--text2);
+  }
+  .scan-idle svg { margin-bottom: 12px; opacity: 0.5; }
+  .scan-frame {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: none;
+  }
+  .scan-frame.active { display: block; }
+  .scan-line {
+    position: absolute;
+    left: 20%; right: 20%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: scanLine 2s ease-in-out infinite;
+  }
+  @keyframes scanLine {
+    0% { top: 20%; opacity: 1; }
+    50% { top: 80%; opacity: 1; }
+    100% { top: 20%; opacity: 1; }
+  }
+  .scan-corners {
+    position: absolute;
+    inset: 20%;
+    border: none;
+  }
+  .scan-corners::before, .scan-corners::after {
+    content: '';
+    position: absolute;
+    width: 24px; height: 24px;
+    border-color: var(--accent);
+    border-style: solid;
+  }
+  .scan-corners::before { top: 0; left: 0; border-width: 3px 0 0 3px; }
+  .scan-corners::after { bottom: 0; right: 0; border-width: 0 3px 3px 0; }
+
+  /* ── Calendar ── */
+  .cal-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .cal-month {
+    font-size: 17px;
+    font-weight: 700;
+  }
+  .cal-nav-btn {
+    width: 34px; height: 34px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--text);
+    transition: all 0.2s;
+  }
+  .cal-nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    text-align: center;
+  }
+  .cal-day-name {
+    font-size: 11px;
+    color: var(--text3);
+    font-weight: 600;
+    padding: 6px 0;
+  }
+  .cal-day {
+    aspect-ratio: 1;
+    border-radius: 9px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s;
+  }
+  .cal-day:hover { background: var(--surface2); }
+  .cal-day.today {
+    background: var(--accent);
+    color: white;
+    font-weight: 700;
+  }
+  .cal-day.has-items::after {
+    content: '';
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    position: absolute;
+    bottom: 3px;
+  }
+  .cal-day.has-urgent::after { background: var(--red); }
+  .cal-day.has-soon::after { background: var(--orange); }
+  .cal-day.has-ok::after { background: var(--green); }
+  .cal-day.other-month { opacity: 0.25; }
+  .cal-day.selected {
+    background: var(--surface2);
+    border: 1px solid var(--accent);
+  }
+
+  /* ── Day Detail ── */
+  .day-detail {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-top: 12px;
+    min-height: 60px;
+  }
+  .day-detail-title {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  .day-empty { text-align: center; color: var(--text3); font-size: 13px; padding: 10px 0; }
+
+  /* ── Discount Page ── */
+  .discount-header {
+    background: linear-gradient(135deg, rgba(255,107,53,0.15), rgba(255,163,28,0.1));
+    border: 1px solid rgba(255,107,53,0.3);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  .discount-title {
+    font-size: 20px;
+    font-weight: 900;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+  .discount-sub { font-size: 12px; color: var(--text2); }
+  .discount-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .discount-days {
+    width: 54px; height: 54px;
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .discount-days.d0 { background: rgba(239,35,60,0.15); }
+  .discount-days.d1 { background: rgba(239,35,60,0.1); }
+  .discount-days.d3 { background: rgba(251,133,0,0.1); }
+  .discount-days.d7 { background: rgba(255,209,102,0.1); }
+  .discount-days-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+    line-height: 1;
+  }
+  .discount-days.d0 .discount-days-num { color: var(--red); }
+  .discount-days.d1 .discount-days-num { color: var(--red); }
+  .discount-days.d3 .discount-days-num { color: var(--orange); }
+  .discount-days.d7 .discount-days-num { color: var(--accent2); }
+  .discount-days-label { font-size: 10px; color: var(--text3); }
+  .discount-info { flex: 1; }
+  .discount-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .discount-date { font-size: 12px; color: var(--text2); }
+  .discount-tag {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .tag-today { background: rgba(239,35,60,0.2); color: var(--red); }
+  .tag-soon { background: rgba(251,133,0,0.2); color: var(--orange); }
+  .tag-week { background: rgba(255,209,102,0.15); color: var(--accent2); }
+  .tag-month { background: rgba(6,214,160,0.1); color: var(--green); }
+
+  /* ── Empty State ── */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text3);
+  }
+  .empty-state svg { margin-bottom: 12px; opacity: 0.3; }
+  .empty-title { font-size: 16px; color: var(--text2); font-weight: 600; margin-bottom: 6px; }
+  .empty-desc { font-size: 13px; line-height: 1.6; }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed;
+    bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 300;
+    pointer-events: none;
+    max-width: 300px;
+    text-align: center;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── Reminder Banner ── */
+  .reminder-banner {
+    background: linear-gradient(135deg, rgba(239,35,60,0.15), rgba(255,107,53,0.1));
+    border: 1px solid rgba(239,35,60,0.3);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .reminder-icon {
+    width: 38px; height: 38px;
+    background: rgba(239,35,60,0.15);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .reminder-text { flex: 1; }
+  .reminder-title { font-size: 13px; font-weight: 700; color: var(--red); margin-bottom: 2px; }
+  .reminder-desc { font-size: 12px; color: var(--text2); }
+
+  /* ── Product Detail Modal ── */
+  .detail-section { margin-bottom: 16px; }
+  .detail-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+  .detail-value { font-size: 15px; font-weight: 600; }
+
+  /* ── Tabs ── */
+  .tab-row {
+    display: flex;
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 3px;
+    margin-bottom: 16px;
+    gap: 3px;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 9px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text3);
+    font-family: 'Noto Sans TC', sans-serif;
+    border: none;
+    background: none;
+  }
+  .tab-btn.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── Settings ── */
+  .settings-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .settings-item:last-child { border-bottom: none; }
+  .settings-info { flex: 1; }
+  .settings-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+  .settings-desc { font-size: 12px; color: var(--text2); }
+  .toggle {
+    width: 46px; height: 26px;
+    background: var(--border);
+    border-radius: 13px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle::after {
+    content: '';
+    width: 20px; height: 20px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 3px; left: 3px;
+    transition: left 0.2s;
+  }
+  .toggle.on::after { left: 23px; }
+
+  .version-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+    background: var(--surface2);
+    padding: 2px 8px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+  }
+
+  /* ── Search ── */
+  .search-bar {
+    display: flex;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin-bottom: 14px;
+    align-items: center;
+  }
+  .search-bar svg { margin-left: 12px; flex-shrink: 0; opacity: 0.4; }
+  .search-input {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 12px 10px;
+    color: var(--text);
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 14px;
+    outline: none;
+  }
+  .search-input::placeholder { color: var(--text3); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <div class="app-header">
+    <div class="app-logo">
+      <div class="logo-badge">7<br>11</div>
+      <div>
+        <div class="app-title">即期品管理</div>
+        <div class="app-subtitle">7-ELEVEN Expiry Tracker</div>
+      </div>
+    </div>
+    <button class="notif-btn" onclick="togglePage('discount')" title="提醒通知">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+      <div class="notif-dot" id="notif-dot"></div>
+    </button>
+  </div>
+
+  <!-- Pages -->
+
+  <!-- HOME PAGE -->
+  <div id="page-home" class="page active">
+    <div id="reminder-area"></div>
+
+    <div class="stats-row">
+      <div class="stat-card urgent" onclick="filterBy('urgent')">
+        <div class="stat-num" id="stat-urgent">0</div>
+        <div class="stat-label">3天内</div>
+      </div>
+      <div class="stat-card soon" onclick="filterBy('soon')">
+        <div class="stat-num" id="stat-soon">0</div>
+        <div class="stat-label">7天内</div>
+      </div>
+      <div class="stat-card ok" onclick="filterBy('all')">
+        <div class="stat-num" id="stat-all">0</div>
+        <div class="stat-label">全部</div>
+      </div>
+    </div>
+
+    <div class="search-bar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input class="search-input" id="search-input" placeholder="搜尋商品名稱..." oninput="renderProductList()">
+    </div>
+
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="setFilter('all',this)">全部</button>
+      <button class="tab-btn" onclick="setFilter('urgent',this)">即將到期</button>
+      <button class="tab-btn" onclick="setFilter('expired',this)">已過期</button>
+    </div>
+
+    <div id="product-list"></div>
+  </div>
+
+  <!-- SCAN PAGE -->
+  <div id="page-scan" class="page">
+    <div class="section-label">條碼掃描</div>
+    <div class="scan-area" id="scan-area">
+      <div class="scan-idle" id="scan-idle">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
+          <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+          <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
+          <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+          <line x1="7" y1="12" x2="7" y2="12.01"/>
+          <line x1="12" y1="7" x2="12" y2="17"/>
+          <line x1="17" y1="12" x2="17" y2="12.01"/>
+        </svg>
+        <div style="font-weight:600;margin-bottom:6px;">點擊下方開始掃描</div>
+        <div style="font-size:12px;color:var(--text3);">需要允許相機存取權限</div>
+      </div>
+      <video id="scan-video" playsinline autoplay muted></video>
+      <div class="scan-frame" id="scan-frame">
+        <div class="scan-line"></div>
+        <div class="scan-corners"></div>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="scan-btn" onclick="toggleScan()">開始掃描條碼</button>
+    <div id="scan-result" style="display:none;" class="card" style="margin-top:12px;">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:6px;">掃描結果</div>
+      <div id="scan-result-text" style="font-family:'DM Mono',monospace;font-size:14px;"></div>
+    </div>
+
+    <div class="section-label" style="margin-top:24px;">手動新增商品</div>
+    <div class="card">
+      <div class="form-group">
+        <label class="form-label">商品名稱</label>
+        <input class="form-input" id="manual-name" placeholder="例如：御飯糰 鮭魚" maxlength="50">
+      </div>
+      <div class="form-group">
+        <label class="form-label">條碼 (選填)</label>
+        <input class="form-input" id="manual-barcode" placeholder="掃描後自動填入" readonly>
+      </div>
+      <div class="form-group">
+        <label class="form-label">到期日</label>
+        <input class="form-input" type="date" id="manual-expiry">
+      </div>
+      <div class="form-group">
+        <label class="form-label">數量</label>
+        <input class="form-input" type="number" id="manual-qty" value="1" min="1" max="99">
+      </div>
+      <div class="form-group">
+        <label class="form-label">商品類別</label>
+        <div class="category-grid" id="cat-grid">
+          <button class="cat-btn selected" data-cat="food" onclick="selectCat(this)"><span class="cat-icon">F</span>食品</button>
+          <button class="cat-btn" data-cat="drink" onclick="selectCat(this)"><span class="cat-icon">D</span>飲料</button>
+          <button class="cat-btn" data-cat="snack" onclick="selectCat(this)"><span class="cat-icon">S</span>零食</button>
+          <button class="cat-btn" data-cat="daily" onclick="selectCat(this)"><span class="cat-icon">H</span>日用品</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">備註</label>
+        <input class="form-input" id="manual-note" placeholder="例如：放在冰箱第二格" maxlength="80">
+      </div>
+      <button class="btn btn-primary" onclick="addProduct()">新增商品</button>
+    </div>
+  </div>
+
+  <!-- CALENDAR PAGE -->
+  <div id="page-calendar" class="page">
+    <div class="card" style="padding:16px;">
+      <div class="cal-nav">
+        <button class="cal-nav-btn" onclick="changeMonth(-1)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="cal-month" id="cal-month-label"></div>
+        <button class="cal-nav-btn" onclick="changeMonth(1)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+    <div class="day-detail" id="day-detail">
+      <div class="day-detail-title" id="day-detail-title">點擊日期查看當天到期商品</div>
+      <div id="day-detail-items"><div class="day-empty">— 請選擇日期 —</div></div>
+    </div>
+
+    <div class="section-label" style="margin-top:16px;">近7天到期預覽</div>
+    <div id="upcoming-list"></div>
+  </div>
+
+  <!-- DISCOUNT PAGE -->
+  <div id="page-discount" class="page">
+    <div class="discount-header">
+      <div class="discount-title">打折專區</div>
+      <div class="discount-sub">即將到期商品，建議優先處理</div>
+    </div>
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="setDiscountFilter('all',this)">全部</button>
+      <button class="tab-btn" onclick="setDiscountFilter('today',this)">今天</button>
+      <button class="tab-btn" onclick="setDiscountFilter('week',this)">本週</button>
+      <button class="tab-btn" onclick="setDiscountFilter('month',this)">本月</button>
+    </div>
+    <div id="discount-list"></div>
+  </div>
+
+  <!-- SETTINGS PAGE -->
+  <div id="page-settings" class="page">
+    <div class="section-label">設定</div>
+    <div class="card">
+      <div class="settings-item">
+        <div class="settings-info">
+          <div class="settings-name">到期提醒通知</div>
+          <div class="settings-desc">在到期日前主動提醒</div>
+        </div>
+        <div class="toggle on" id="toggle-notif" onclick="toggleSetting('notif')"></div>
+      </div>
+      <div class="settings-item">
+        <div class="settings-info">
+          <div class="settings-name">提前提醒天數</div>
+          <div class="settings-desc">幾天前開始顯示提醒</div>
+        </div>
+        <select class="form-input" id="remind-days" style="width:80px;padding:8px 10px;" onchange="saveSetting()">
+          <option value="7">7天</option>
+          <option value="14">14天</option>
+          <option value="30" selected>30天</option>
+        </select>
+      </div>
+      <div class="settings-item">
+        <div class="settings-info">
+          <div class="settings-name">自動清除已過期</div>
+          <div class="settings-desc">過期後自動移入記錄</div>
+        </div>
+        <div class="toggle" id="toggle-auto" onclick="toggleSetting('auto')"></div>
+      </div>
+    </div>
+
+    <div class="section-label">資料管理</div>
+    <div class="card">
+      <button class="btn btn-secondary" onclick="exportData()">匯出資料 (JSON)</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">匯入資料</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+      <button class="btn btn-danger" onclick="clearAllData()">清除所有資料</button>
+    </div>
+
+    <div class="section-label">關於</div>
+    <div class="card">
+      <div class="settings-item">
+        <div class="settings-info">
+          <div class="settings-name">7-11 即期品管理</div>
+          <div class="settings-desc">持續更新中，支援用戶反饋</div>
+        </div>
+        <span class="version-tag">v1.3.0</span>
+      </div>
+      <div class="settings-item">
+        <div class="settings-info">
+          <div class="settings-name">功能更新記錄</div>
+          <div class="settings-desc">v1.3 - 條碼掃描 + 行事曆 + 打折專區</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <label class="form-label">建議新功能</label>
+        <input class="form-input" id="feedback-input" placeholder="輸入您的建議..." maxlength="200">
+        <button class="btn btn-primary" style="margin-top:10px;" onclick="submitFeedback()">送出建議</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="togglePage('home')" id="nav-home">
+      <div class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      </div>
+      首頁
+    </button>
+    <button class="nav-item" onclick="togglePage('scan')" id="nav-scan">
+      <div class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>
+          <rect x="7" y="7" width="10" height="10" rx="1"/>
+        </svg>
+      </div>
+      掃描
+    </button>
+    <button class="nav-item" onclick="togglePage('calendar')" id="nav-calendar">
+      <div class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+      </div>
+      行事曆
+    </button>
+    <button class="nav-item" onclick="togglePage('discount')" id="nav-discount">
+      <div class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+          <line x1="7" y1="7" x2="7.01" y2="7"/>
+        </svg>
+      </div>
+      打折
+    </button>
+    <button class="nav-item" onclick="togglePage('settings')" id="nav-settings">
+      <div class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </div>
+      設定
+    </button>
+  </nav>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+</div>
+
+<!-- Product Detail Modal -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="detail-modal-name"></div>
+    <div class="detail-section">
+      <div class="detail-label">到期日</div>
+      <div class="detail-value" id="detail-modal-expiry"></div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-label">狀態</div>
+      <div class="detail-value" id="detail-modal-status"></div>
+    </div>
+    <div class="detail-section" id="detail-barcode-section">
+      <div class="detail-label">條碼</div>
+      <div class="detail-value" id="detail-modal-barcode" style="font-family:'DM Mono',monospace;"></div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-label">類別</div>
+      <div class="detail-value" id="detail-modal-cat"></div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-label">數量</div>
+      <div class="detail-value" id="detail-modal-qty"></div>
+    </div>
+    <div class="detail-section" id="detail-note-section">
+      <div class="detail-label">備註</div>
+      <div class="detail-value" id="detail-modal-note"></div>
+    </div>
+    <button class="btn btn-danger" id="detail-delete-btn">刪除此商品</button>
+    <button class="btn btn-secondary" onclick="closeDetailModal()">關閉</button>
+  </div>
+</div>
+
+<script>
+// ── Data Store ──
+let products = JSON.parse(localStorage.getItem('711_products') || '[]');
+let settings = JSON.parse(localStorage.getItem('711_settings') || '{"notif":true,"auto":false,"remindDays":30}');
+let calYear, calMonth;
+let currentFilter = 'all';
+let discountFilter = 'all';
+let selectedDetailId = null;
+let scanActive = false;
+let codeReader = null;
+const today = new Date();
+
+const CAT_LABELS = { food: '食品', drink: '飲料', snack: '零食', daily: '日用品' };
+const CAT_COLORS = { food: '#06d6a0', drink: '#118ab2', snack: '#ffd166', daily: '#e0aaff' };
+
+function saveProducts() { localStorage.setItem('711_products', JSON.stringify(products)); }
+function saveSettings() { localStorage.setItem('711_settings', JSON.stringify(settings)); }
+
+// ── Date Helpers ──
+function toDateStr(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function getTodayStr() { return toDateStr(new Date()); }
+function daysUntil(dateStr) {
+  const t = new Date(); t.setHours(0,0,0,0);
+  const e = new Date(dateStr); e.setHours(0,0,0,0);
+  return Math.round((e-t)/(1000*60*60*24));
+}
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  return d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0');
+}
+function getBadgeClass(days) {
+  if (days < 0) return 'badge-expired';
+  if (days <= 3) return 'badge-urgent';
+  if (days <= 7) return 'badge-soon';
+  return 'badge-ok';
+}
+function getBadgeText(days) {
+  if (days < 0) return '已過期';
+  if (days === 0) return '今天到期';
+  if (days === 1) return '明天到期';
+  return days + '天後';
+}
+
+// ── Navigation ──
+function togglePage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  if (name === 'home') renderProductList();
+  if (name === 'calendar') renderCalendar();
+  if (name === 'discount') renderDiscount();
+  if (scanActive && name !== 'scan') stopScan();
+}
+
+// ── Product List ──
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderProductList();
+}
+function filterBy(type) {
+  togglePage('home');
+  const map = { urgent: 1, soon: 2, all: 0 };
+  if (type === 'urgent') setFilter('urgent', document.querySelectorAll('#page-home .tab-btn')[1]);
+  else setFilter('all', document.querySelectorAll('#page-home .tab-btn')[0]);
+}
+
+function renderProductList() {
+  const query = (document.getElementById('search-input').value || '').toLowerCase();
+  const list = document.getElementById('product-list');
+  let filtered = products.filter(p => !p.deleted);
+  if (currentFilter === 'urgent') filtered = filtered.filter(p => { const d = daysUntil(p.expiry); return d >= 0 && d <= 7; });
+  if (currentFilter === 'expired') filtered = filtered.filter(p => daysUntil(p.expiry) < 0);
+  if (query) filtered = filtered.filter(p => p.name.toLowerCase().includes(query) || (p.barcode||'').includes(query));
+  filtered.sort((a,b) => new Date(a.expiry) - new Date(b.expiry));
+
+  // Stats
+  const allP = products.filter(p => !p.deleted);
+  document.getElementById('stat-urgent').textContent = allP.filter(p => { const d=daysUntil(p.expiry); return d>=0&&d<=3; }).length;
+  document.getElementById('stat-soon').textContent = allP.filter(p => { const d=daysUntil(p.expiry); return d>=0&&d<=7; }).length;
+  document.getElementById('stat-all').textContent = allP.length;
+
+  // Reminder
+  renderReminders();
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/>
+        <path d="M16.5 9.4 7.55 4.24"/><polyline points="3.29 7 12 12 20.71 7"/>
+        <line x1="12" y1="22" x2="12" y2="12"/>
+      </svg>
+      <div class="empty-title">尚無商品</div>
+      <div class="empty-desc">點擊下方掃描圖示<br>新增您的第一個商品</div>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(p => {
+    const days = daysUntil(p.expiry);
+    const bc = getBadgeClass(days);
+    const bt = getBadgeText(days);
+    const catColor = CAT_COLORS[p.category] || '#888';
+    return `<div class="product-item" onclick="openDetail('${p.id}')">
+      <div class="product-icon" style="background:${catColor}22;color:${catColor};">${CAT_LABELS[p.category]?.charAt(0)||'?'}</div>
+      <div class="product-info">
+        <div class="product-name">${escHtml(p.name)}${p.qty > 1 ? ` <span style="color:var(--text3);font-size:12px;">x${p.qty}</span>` : ''}</div>
+        <div class="product-meta">${formatDate(p.expiry)}${p.note ? ' · ' + escHtml(p.note) : ''}</div>
+      </div>
+      <div class="expiry-badge ${bc}">${bt}</div>
+    </div>`;
+  }).join('');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderReminders() {
+  const area = document.getElementById('reminder-area');
+  const remind = products.filter(p => !p.deleted).filter(p => {
+    const d = daysUntil(p.expiry);
+    return d >= 0 && d <= settings.remindDays;
+  });
+  document.getElementById('notif-dot').classList.toggle('active', remind.length > 0);
+  if (remind.length === 0) { area.innerHTML = ''; return; }
+  const urgent = remind.filter(p => daysUntil(p.expiry) <= 3);
+  if (urgent.length > 0) {
+    area.innerHTML = `<div class="reminder-banner">
+      <div class="reminder-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef233c" stroke-width="2">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </div>
+      <div class="reminder-text">
+        <div class="reminder-title">即將到期提醒</div>
+        <div class="reminder-desc">${urgent.length} 件商品於 3 天內到期，請盡快處理</div>
+      </div>
+    </div>`;
+  } else {
+    area.innerHTML = `<div class="reminder-banner" style="background:rgba(251,133,0,0.1);border-color:rgba(251,133,0,0.3);">
+      <div class="reminder-icon" style="background:rgba(251,133,0,0.15);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fb8500" stroke-width="2">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      </div>
+      <div class="reminder-text">
+        <div class="reminder-title" style="color:var(--orange);">到期提醒</div>
+        <div class="reminder-desc">${remind.length} 件商品即將於 ${settings.remindDays} 天內到期</div>
+      </div>
+    </div>`;
+  }
+}
+
+// ── Add Product ──
+let selectedCat = 'food';
+function selectCat(btn) {
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedCat = btn.dataset.cat;
+}
+
+function addProduct() {
+  const name = document.getElementById('manual-name').value.trim();
+  const expiry = document.getElementById('manual-expiry').value;
+  const barcode = document.getElementById('manual-barcode').value.trim();
+  const qty = parseInt(document.getElementById('manual-qty').value) || 1;
+  const note = document.getElementById('manual-note').value.trim();
+  if (!name) { showToast('請輸入商品名稱'); return; }
+  if (!expiry) { showToast('請選擇到期日'); return; }
+  const product = {
+    id: Date.now().toString(),
+    name, expiry, barcode, qty,
+    category: selectedCat,
+    note,
+    addedAt: getTodayStr(),
+    deleted: false
+  };
+  products.unshift(product);
+  saveProducts();
+  document.getElementById('manual-name').value = '';
+  document.getElementById('manual-barcode').value = '';
+  document.getElementById('manual-expiry').value = '';
+  document.getElementById('manual-qty').value = '1';
+  document.getElementById('manual-note').value = '';
+  stopScan();
+  showToast('商品已新增！');
+  togglePage('home');
+  renderProductList();
+}
+
+// ── Product Detail Modal ──
+function openDetail(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  selectedDetailId = id;
+  const days = daysUntil(p.expiry);
+  document.getElementById('detail-modal-name').textContent = p.name;
+  document.getElementById('detail-modal-expiry').textContent = formatDate(p.expiry);
+  document.getElementById('detail-modal-status').innerHTML = `<span class="expiry-badge ${getBadgeClass(days)}" style="display:inline-block;">${getBadgeText(days)}</span>`;
+  document.getElementById('detail-modal-barcode').textContent = p.barcode || '—';
+  document.getElementById('detail-barcode-section').style.display = p.barcode ? '' : 'none';
+  document.getElementById('detail-modal-cat').textContent = CAT_LABELS[p.category] || '—';
+  document.getElementById('detail-modal-qty').textContent = p.qty + ' 個';
+  document.getElementById('detail-modal-note').textContent = p.note || '無';
+  document.getElementById('detail-note-section').style.display = p.note ? '' : 'none';
+  document.getElementById('detail-delete-btn').onclick = () => deleteProduct(id);
+  document.getElementById('detail-modal').classList.add('open');
+}
+function closeDetailModal() {
+  document.getElementById('detail-modal').classList.remove('open');
+}
+function deleteProduct(id) {
+  if (!confirm('確定要刪除此商品？')) return;
+  products = products.map(p => p.id === id ? {...p, deleted: true} : p);
+  saveProducts();
+  closeDetailModal();
+  renderProductList();
+  showToast('商品已刪除');
+}
+
+// ── Barcode Scan ──
+function toggleScan() {
+  if (scanActive) stopScan(); else startScan();
+}
+
+async function startScan() {
+  try {
+    const video = document.getElementById('scan-video');
+    const frame = document.getElementById('scan-frame');
+    const idle = document.getElementById('scan-idle');
+    const btn = document.getElementById('scan-btn');
+
+    if (typeof ZXing === 'undefined') {
+      showToast('條碼庫載入中，請稍候...');
+      return;
+    }
+
+    codeReader = new ZXing.BrowserMultiFormatReader();
+    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+    if (!devices.length) { showToast('找不到相機設備'); return; }
+
+    const backCam = devices.find(d => /back|rear|環境/i.test(d.label)) || devices[devices.length-1];
+
+    idle.style.display = 'none';
+    video.style.display = 'block';
+    frame.classList.add('active');
+    btn.textContent = '停止掃描';
+    scanActive = true;
+
+    await codeReader.decodeFromVideoDevice(backCam.deviceId, video, (result, err) => {
+      if (result) {
+        const code = result.getText();
+        document.getElementById('manual-barcode').value = code;
+        document.getElementById('scan-result').style.display = 'block';
+        document.getElementById('scan-result-text').textContent = code;
+        lookupProduct(code);
+        stopScan();
+        showToast('條碼掃描成功！');
+      }
+    });
+  } catch(e) {
+    showToast('相機存取失敗，請手動輸入');
+    stopScan();
+  }
+}
+
+function stopScan() {
+  if (codeReader) { try { codeReader.reset(); } catch(e) {} codeReader = null; }
+  const video = document.getElementById('scan-video');
+  const frame = document.getElementById('scan-frame');
+  const idle = document.getElementById('scan-idle');
+  const btn = document.getElementById('scan-btn');
+  if (video) {
+    video.style.display = 'none';
+    if (video.srcObject) { video.srcObject.getTracks().forEach(t=>t.stop()); video.srcObject=null; }
+  }
+  if (frame) frame.classList.remove('active');
+  if (idle) idle.style.display = '';
+  if (btn) btn.textContent = '開始掃描條碼';
+  scanActive = false;
+}
+
+// Simple barcode → product name lookup (common 7-11 items)
+const BARCODE_DB = {
+  '4901433016045': '7-11 御飯糰 鮭魚',
+  '4901433016038': '7-11 御飯糰 明太子',
+  '4902102072472': '7-11 御飯糰 燒肉',
+  '4901805092310': '統一麵 肉骨茶',
+  '4710088310302': '御飯糰 原味',
+  '4710085161031': 'CITY CAFE 拿鐵',
+  '4710085700100': 'CITY CAFE 美式',
+  '4901433019008': '7-11 三明治 火腿蛋',
+  '4901433019015': '7-11 三明治 鮪魚',
+};
+function lookupProduct(code) {
+  if (BARCODE_DB[code]) {
+    document.getElementById('manual-name').value = BARCODE_DB[code];
+    showToast('已識別商品：' + BARCODE_DB[code]);
+  } else {
+    showToast('條碼：' + code + '（請手動輸入商品名稱）');
+  }
+}
+
+// ── Calendar ──
+function initCalendar() {
+  const now = new Date();
+  calYear = now.getFullYear();
+  calMonth = now.getMonth();
+}
+function changeMonth(delta) {
+  calMonth += delta;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+}
+function renderCalendar() {
+  const monthNames = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+  document.getElementById('cal-month-label').textContent = calYear + '年 ' + monthNames[calMonth];
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const prevDays = new Date(calYear, calMonth, 0).getDate();
+  const todayStr = getTodayStr();
+
+  // Build expiry map
+  const expiryMap = {};
+  products.filter(p=>!p.deleted).forEach(p => {
+    const d = new Date(p.expiry);
+    if (d.getFullYear() === calYear && d.getMonth() === calMonth) {
+      const key = d.getDate();
+      if (!expiryMap[key]) expiryMap[key] = [];
+      expiryMap[key].push(p);
+    }
+  });
+
+  const dayNames = ['日','一','二','三','四','五','六'];
+  let html = dayNames.map(d => `<div class="cal-day-name">${d}</div>`).join('');
+
+  // Prev month padding
+  for (let i = firstDay-1; i >= 0; i--) {
+    html += `<div class="cal-day other-month">${prevDays-i}</div>`;
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    const isToday = dateStr === todayStr;
+    const items = expiryMap[d] || [];
+    let cls = 'cal-day';
+    if (isToday) cls += ' today';
+    if (items.length) {
+      const minDays = Math.min(...items.map(p => daysUntil(p.expiry)));
+      if (minDays <= 3) cls += ' has-items has-urgent';
+      else if (minDays <= 7) cls += ' has-items has-soon';
+      else cls += ' has-items has-ok';
+    }
+    html += `<div class="${cls}" onclick="selectCalDay(${d})">${d}</div>`;
+  }
+
+  // Fill remaining
+  const total = firstDay + daysInMonth;
+  const remaining = (7 - (total % 7)) % 7;
+  for (let i = 1; i <= remaining; i++) {
+    html += `<div class="cal-day other-month">${i}</div>`;
+  }
+
+  document.getElementById('cal-grid').innerHTML = html;
+  renderUpcoming();
+}
+
+function selectCalDay(day) {
+  const dateStr = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+  const items = products.filter(p => !p.deleted && p.expiry === dateStr);
+  const label = calYear + '/' + String(calMonth+1).padStart(2,'0') + '/' + String(day).padStart(2,'0');
+  document.getElementById('day-detail-title').textContent = label + ' 到期商品';
+  if (items.length === 0) {
+    document.getElementById('day-detail-items').innerHTML = '<div class="day-empty">當天無到期商品</div>';
+  } else {
+    document.getElementById('day-detail-items').innerHTML = items.map(p => {
+      const days = daysUntil(p.expiry);
+      return `<div class="product-item" onclick="openDetail('${p.id}')">
+        <div class="product-icon" style="background:${CAT_COLORS[p.category]}22;color:${CAT_COLORS[p.category]};">${CAT_LABELS[p.category]?.charAt(0)||'?'}</div>
+        <div class="product-info">
+          <div class="product-name">${escHtml(p.name)}</div>
+          <div class="product-meta">${CAT_LABELS[p.category]||''}${p.qty>1?' · x'+p.qty:''}</div>
+        </div>
+        <div class="expiry-badge ${getBadgeClass(days)}">${getBadgeText(days)}</div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function renderUpcoming() {
+  const container = document.getElementById('upcoming-list');
+  const next7 = [];
+  for (let i=0; i<=7; i++) {
+    const d = new Date(); d.setDate(d.getDate()+i);
+    const ds = toDateStr(d);
+    const items = products.filter(p => !p.deleted && p.expiry === ds);
+    if (items.length) next7.push({ dateStr: ds, items, days: i });
+  }
+  if (next7.length === 0) {
+    container.innerHTML = '<div class="empty-state" style="padding:20px;"><div class="empty-title" style="font-size:14px;">未來 7 天無到期商品</div></div>';
+    return;
+  }
+  container.innerHTML = next7.map(g => `
+    <div class="card" style="margin-bottom:10px;padding:12px 14px;">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:700;">
+        ${g.days===0?'今天到期':g.days===1?'明天到期':g.days+'天後'}
+        <span style="font-family:'DM Mono',monospace;font-weight:400;margin-left:4px;">${formatDate(g.dateStr)}</span>
+      </div>
+      ${g.items.map(p=>`<div class="product-item" style="padding:8px 0;" onclick="openDetail('${p.id}')">
+        <div class="product-icon" style="background:${CAT_COLORS[p.category]}22;color:${CAT_COLORS[p.category]};width:36px;height:36px;border-radius:9px;">${CAT_LABELS[p.category]?.charAt(0)||'?'}</div>
+        <div class="product-info"><div class="product-name" style="font-size:13px;">${escHtml(p.name)}</div></div>
+        <div class="expiry-badge ${getBadgeClass(g.days)}">${getBadgeText(g.days)}</div>
+      </div>`).join('')}
+    </div>
+  `).join('');
+}
+
+// ── Discount Page ──
+function setDiscountFilter(f, btn) {
+  discountFilter = f;
+  document.querySelectorAll('#page-discount .tab-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderDiscount();
+}
+
+function renderDiscount() {
+  const remindDays = settings.remindDays || 30;
+  let items = products.filter(p => !p.deleted).filter(p => {
+    const d = daysUntil(p.expiry);
+    return d >= 0 && d <= remindDays;
+  });
+  if (discountFilter === 'today') items = items.filter(p => daysUntil(p.expiry) === 0);
+  if (discountFilter === 'week') items = items.filter(p => daysUntil(p.expiry) <= 7);
+  if (discountFilter === 'month') items = items.filter(p => daysUntil(p.expiry) <= 30);
+  items.sort((a,b) => new Date(a.expiry)-new Date(b.expiry));
+
+  const container = document.getElementById('discount-list');
+  if (items.length === 0) {
+    container.innerHTML = `<div class="empty-state">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+        <line x1="7" y1="7" x2="7.01" y2="7"/>
+      </svg>
+      <div class="empty-title">打折專區暫無商品</div>
+      <div class="empty-desc">目前沒有即將到期的商品<br>請先新增商品</div>
+    </div>`;
+    return;
+  }
+
+  container.innerHTML = items.map(p => {
+    const days = daysUntil(p.expiry);
+    let tagClass, tagText, daysClass;
+    if (days === 0) { tagClass='tag-today'; tagText='今天到期'; daysClass='d0'; }
+    else if (days <= 1) { tagClass='tag-today'; tagText='明天到期'; daysClass='d1'; }
+    else if (days <= 3) { tagClass='tag-soon'; tagText='3天内'; daysClass='d3'; }
+    else if (days <= 7) { tagClass='tag-week'; tagText='本週'; daysClass='d7'; }
+    else { tagClass='tag-month'; tagText=days+'天後'; daysClass='d7'; }
+
+    return `<div class="discount-item" onclick="openDetail('${p.id}')">
+      <div class="discount-days ${daysClass}">
+        <div class="discount-days-num">${days}</div>
+        <div class="discount-days-label">天後</div>
+      </div>
+      <div class="discount-info">
+        <div class="discount-name">${escHtml(p.name)}${p.qty>1?` x${p.qty}`:''}</div>
+        <div class="discount-date">${formatDate(p.expiry)} · ${CAT_LABELS[p.category]||''}</div>
+      </div>
+      <div class="discount-tag ${tagClass}">${tagText}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Settings ──
+function toggleSetting(key) {
+  if (key==='notif') {
+    settings.notif = !settings.notif;
+    document.getElementById('toggle-notif').classList.toggle('on', settings.notif);
+    if (settings.notif && Notification.permission === 'default') {
+      Notification.requestPermission().then(p => {
+        if (p === 'granted') showToast('通知已啟用');
+      });
+    }
+  }
+  if (key==='auto') {
+    settings.auto = !settings.auto;
+    document.getElementById('toggle-auto').classList.toggle('on', settings.auto);
+  }
+  saveSettings();
+}
+function saveSetting() {
+  settings.remindDays = parseInt(document.getElementById('remind-days').value);
+  saveSettings();
+  showToast('設定已儲存');
+}
+
+function exportData() {
+  const data = JSON.stringify(products.filter(p=>!p.deleted), null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = '711_products.json'; a.click();
+  URL.revokeObjectURL(url);
+  showToast('資料匯出成功');
+}
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (Array.isArray(data)) {
+        products = [...products, ...data.map(p => ({...p, id: Date.now().toString()+Math.random()}))];
+        saveProducts();
+        renderProductList();
+        showToast('資料匯入成功：' + data.length + ' 筆');
+      }
+    } catch { showToast('匯入失敗，格式錯誤'); }
+  };
+  reader.readAsText(file);
+}
+function clearAllData() {
+  if (!confirm('確定要清除所有資料？此操作無法復原。')) return;
+  products = [];
+  saveProducts();
+  renderProductList();
+  showToast('所有資料已清除');
+}
+
+function submitFeedback() {
+  const val = document.getElementById('feedback-input').value.trim();
+  if (!val) return;
+  const feedbacks = JSON.parse(localStorage.getItem('711_feedback') || '[]');
+  feedbacks.push({ text: val, date: getTodayStr() });
+  localStorage.setItem('711_feedback', JSON.stringify(feedbacks));
+  document.getElementById('feedback-input').value = '';
+  showToast('感謝您的建議！我們會持續改進');
+}
+
+// ── Toast ──
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── Browser Notifications ──
+function checkNotifications() {
+  if (!settings.notif) return;
+  if (Notification.permission !== 'granted') return;
+  const todayStr = getTodayStr();
+  const key = '711_notif_' + todayStr;
+  if (localStorage.getItem(key)) return;
+  const urgent = products.filter(p => !p.deleted).filter(p => {
+    const d = daysUntil(p.expiry);
+    return d >= 0 && d <= 3;
+  });
+  if (urgent.length > 0) {
+    new Notification('7-11 即期品提醒', {
+      body: urgent.length + ' 件商品即將於 3 天內到期，請盡快處理！',
+      icon: '/favicon.ico'
+    });
+    localStorage.setItem(key, '1');
+  }
+}
+
+// ── Init ──
+function init() {
+  initCalendar();
+  // Set default expiry to today+7
+  const d = new Date(); d.setDate(d.getDate()+7);
+  document.getElementById('manual-expiry').value = toDateStr(d);
+  // Load settings UI
+  document.getElementById('toggle-notif').classList.toggle('on', settings.notif);
+  document.getElementById('toggle-auto').classList.toggle('on', settings.auto);
+  document.getElementById('remind-days').value = settings.remindDays || 30;
+  renderProductList();
+  checkNotifications();
+  // Close modal on overlay click
+  document.getElementById('detail-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeDetailModal();
+  });
+  // Request notification permission
+  if (settings.notif && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+init();
+</script>
+</body>
+</html>
