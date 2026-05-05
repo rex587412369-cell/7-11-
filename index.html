@@ -1,1401 +1,1349 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>7-11 即期品管理</title>
-<script src="https://unpkg.com/@zxing/browser@0.1.4/umd/index.min.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>即期品管理</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
+
   :root {
-    --bg: #f5f5f0;
-    --card: #ffffff;
-    --text: #1a1a1a;
-    --sub: #666666;
-    --border: #e0e0e0;
-    --green: #00a651;
-    --green-light: #e8f5ee;
-    --orange: #f7941d;
-    --orange-light: #fff3e0;
-    --red: #e63946;
-    --red-light: #fdecea;
-    --blue: #1d7cf7;
-    --blue-light: #e8f1ff;
-    --yellow: #ffc107;
-    --shadow: 0 2px 12px rgba(0,0,0,0.08);
-    --radius: 16px;
-    --radius-sm: 10px;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  body {
-    font-family: -apple-system, 'PingFang TC', 'Microsoft JhengHei', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    padding-bottom: 80px;
-    font-size: 15px;
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #222222;
+    --border: #2e2e2e;
+    --accent: #e8c547;
+    --accent2: #e8a847;
+    --red: #e85447;
+    --green: #47e8a0;
+    --blue: #4788e8;
+    --text: #f0f0f0;
+    --text2: #888;
+    --text3: #555;
+    --radius: 14px;
+    --font: 'Noto Sans TC', sans-serif;
+    --mono: 'DM Mono', monospace;
   }
 
-  /* HEADER */
-  .header {
-    background: var(--green);
-    color: #fff;
-    padding: 16px 20px 14px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-shadow: 0 2px 10px rgba(0,166,81,0.3);
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    overflow-x: hidden;
   }
-  .header-top { display: flex; align-items: center; justify-content: space-between; }
-  .header h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
-  .header-sub { font-size: 12px; opacity: 0.85; margin-top: 2px; }
-  .header-stats { display: flex; gap: 12px; margin-top: 12px; }
-  .stat-chip {
-    background: rgba(255,255,255,0.2);
+
+  /* ── Header ── */
+  .header {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(15,15,15,0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-row { display: flex; align-items: center; justify-content: space-between; }
+  .app-title { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  .app-title span { color: var(--accent); }
+  .header-stats { display: flex; gap: 12px; margin-top: 10px; }
+  .stat-pill {
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 20px;
     padding: 4px 12px;
     font-size: 12px;
-    font-weight: 600;
-    display: flex; align-items: center; gap: 5px;
+    color: var(--text2);
+    display: flex; align-items: center; gap: 6px;
   }
-  .stat-chip .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .stat-pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot-red { background: var(--red); }
+  .dot-yellow { background: var(--accent); }
+  .dot-green { background: var(--green); }
 
-  /* NAV */
-  .bottom-nav {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    background: #fff;
-    border-top: 1px solid var(--border);
-    display: flex;
-    z-index: 200;
-    box-shadow: 0 -2px 12px rgba(0,0,0,0.07);
+  /* ── Filter Tabs ── */
+  .filter-bar {
+    display: flex; gap: 8px;
+    padding: 12px 20px;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
-  .nav-item {
-    flex: 1;
-    display: flex; flex-direction: column; align-items: center;
-    padding: 10px 0 8px;
-    font-size: 11px;
-    color: var(--sub);
-    cursor: pointer;
-    transition: color 0.15s;
-    border: none; background: none; gap: 4px;
-  }
-  .nav-item.active { color: var(--green); }
-  .nav-item svg { width: 22px; height: 22px; }
-  .nav-item span { font-weight: 500; }
-
-  /* FAB */
-  .fab {
-    position: fixed;
-    bottom: 72px; right: 20px;
-    width: 56px; height: 56px;
-    background: var(--green);
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 16px rgba(0,166,81,0.4);
-    cursor: pointer; border: none;
-    transition: transform 0.15s, box-shadow 0.15s;
-    z-index: 150;
-  }
-  .fab:active { transform: scale(0.93); box-shadow: 0 2px 8px rgba(0,166,81,0.3); }
-  .fab svg { width: 28px; height: 28px; color: #fff; }
-
-  /* PAGES */
-  .page { display: none; padding: 16px; }
-  .page.active { display: block; }
-
-  /* CARDS */
-  .card {
-    background: var(--card);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 16px;
-    margin-bottom: 12px;
-  }
-  .section-title {
+  .filter-bar::-webkit-scrollbar { display: none; }
+  .filter-tab {
+    flex-shrink: 0;
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
     font-size: 13px;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .filter-tab.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
     font-weight: 700;
-    color: var(--sub);
+  }
+
+  /* ── List ── */
+  .list-wrap { padding: 0 20px 120px; }
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
+    color: var(--text3);
     margin: 20px 0 10px;
   }
-  .section-title:first-child { margin-top: 0; }
 
-  /* PRODUCT ITEM */
-  .product-item {
-    background: var(--card);
-    border-radius: var(--radius-sm);
+  .item-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
     padding: 14px 16px;
-    margin-bottom: 8px;
-    box-shadow: var(--shadow);
-    display: flex; align-items: center; gap: 12px;
-    position: relative;
-    overflow: hidden;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: transform 0.15s, opacity 0.15s;
+    animation: slideIn 0.25s ease both;
   }
-  .product-item::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 4px;
-    border-radius: 4px 0 0 4px;
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
-  .product-item.urgent::before { background: var(--red); }
-  .product-item.warning::before { background: var(--orange); }
-  .product-item.safe::before { background: var(--green); }
-  .product-icon {
-    width: 40px; height: 40px;
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px;
+  .item-card:active { transform: scale(0.98); }
+
+  .item-urgency {
+    width: 4px; height: 48px;
+    border-radius: 4px;
     flex-shrink: 0;
   }
-  .product-icon.urgent { background: var(--red-light); }
-  .product-icon.warning { background: var(--orange-light); }
-  .product-icon.safe { background: var(--green-light); }
-  .product-info { flex: 1; min-width: 0; }
-  .product-name { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .product-meta { font-size: 12px; color: var(--sub); margin-top: 3px; display: flex; gap: 10px; flex-wrap: wrap; }
-  .badge {
-    display: inline-flex; align-items: center;
-    padding: 2px 8px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 600;
+  .urgency-red { background: var(--red); }
+  .urgency-yellow { background: var(--accent); }
+  .urgency-green { background: var(--green); }
+
+  .item-info { flex: 1; min-width: 0; }
+  .item-name {
+    font-size: 15px; font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 4px;
   }
-  .badge.urgent { background: var(--red-light); color: var(--red); }
-  .badge.warning { background: var(--orange-light); color: var(--orange); }
-  .badge.safe { background: var(--green-light); color: var(--green); }
-  .badge.discount { background: #fff3e0; color: #e65100; }
-  .product-actions { display: flex; gap: 6px; }
-  .btn-icon {
-    width: 32px; height: 32px;
-    border-radius: 8px;
+  .item-meta { display: flex; align-items: center; gap: 8px; }
+  .item-category {
+    font-size: 11px;
+    background: var(--surface2);
     border: 1px solid var(--border);
-    background: #fff;
+    border-radius: 6px;
+    padding: 2px 7px;
+    color: var(--text2);
+  }
+  .item-date {
+    font-size: 12px;
+    color: var(--text2);
+    font-family: var(--mono);
+  }
+
+  .item-countdown {
+    text-align: right; flex-shrink: 0;
+  }
+  .countdown-num {
+    font-size: 22px; font-weight: 700;
+    font-family: var(--mono);
+    line-height: 1;
+  }
+  .countdown-label { font-size: 10px; color: var(--text2); margin-top: 2px; }
+
+  .item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .btn-icon {
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text2);
+    font-size: 14px;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: all 0.15s;
   }
-  .btn-icon:active { background: var(--bg); }
-  .btn-icon svg { width: 16px; height: 16px; color: var(--sub); }
-  .btn-icon.delete:active { background: var(--red-light); }
-  .btn-icon.delete svg { color: var(--red); }
+  .btn-icon:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-icon.danger:hover { border-color: var(--red); color: var(--red); }
 
-  /* MODAL */
-  .modal-overlay {
+  /* ── FAB ── */
+  .fab {
+    position: fixed; bottom: 28px; right: 24px;
+    width: 56px; height: 56px;
+    background: var(--accent);
+    border-radius: 18px;
+    border: none;
+    color: #000;
+    font-size: 26px; font-weight: 300;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(232,197,71,0.4);
+    z-index: 200;
+    transition: all 0.2s;
+  }
+  .fab:active { transform: scale(0.93); }
+
+  /* ── Modal Backdrop ── */
+  .modal-backdrop {
     display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     z-index: 300;
     align-items: flex-end;
   }
-  .modal-overlay.open { display: flex; }
-  .modal {
-    background: #fff;
-    border-radius: 24px 24px 0 0;
+  .modal-backdrop.open { display: flex; }
+
+  /* ── Action Sheet ── */
+  .action-sheet {
     width: 100%;
-    max-height: 92vh;
-    overflow-y: auto;
-    padding: 0 20px 40px;
-    animation: slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    background: var(--surface);
+    border-radius: 24px 24px 0 0;
+    padding: 12px 20px 40px;
+    animation: slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
   }
   @keyframes slideUp {
     from { transform: translateY(100%); }
-    to { transform: translateY(0); }
+    to   { transform: translateY(0); }
   }
-  .modal-handle {
+  .sheet-handle {
     width: 40px; height: 4px;
     background: var(--border);
     border-radius: 2px;
-    margin: 12px auto 20px;
+    margin: 0 auto 20px;
   }
-  .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
-
-  /* FORM */
-  .form-group { margin-bottom: 16px; }
-  .form-label { font-size: 13px; font-weight: 600; color: var(--sub); margin-bottom: 6px; display: block; }
-  .form-input {
+  .sheet-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+  .sheet-btn {
     width: 100%;
-    padding: 12px 14px;
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius-sm);
+    padding: 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    font-family: var(--font);
     font-size: 15px;
-    font-family: inherit;
-    background: #fff;
-    transition: border-color 0.15s;
-    outline: none;
-    -webkit-appearance: none;
-  }
-  .form-input:focus { border-color: var(--green); }
-  .form-input[type="date"] { cursor: pointer; }
-  select.form-input { cursor: pointer; }
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
-  /* CATEGORY GRID */
-  .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
-  .cat-btn {
-    display: flex; flex-direction: column; align-items: center;
-    padding: 12px 6px;
-    border: 2px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: #fff;
+    font-weight: 500;
+    text-align: left;
     cursor: pointer;
+    margin-bottom: 10px;
+    display: flex; align-items: center; gap: 14px;
     transition: all 0.15s;
-    font-family: inherit;
   }
-  .cat-btn .cat-icon { font-size: 22px; margin-bottom: 5px; }
-  .cat-btn .cat-label { font-size: 11px; font-weight: 600; color: var(--sub); }
-  .cat-btn.selected { border-color: var(--green); background: var(--green-light); }
-  .cat-btn.selected .cat-label { color: var(--green); }
-
-  /* BUTTONS */
-  .btn {
-    width: 100%;
-    padding: 14px;
-    border-radius: var(--radius-sm);
-    font-size: 16px;
-    font-weight: 700;
-    border: none;
-    cursor: pointer;
-    transition: all 0.15s;
-    font-family: inherit;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
+  .sheet-btn:hover { border-color: var(--accent); }
+  .sheet-btn-icon {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
   }
-  .btn:active { transform: scale(0.97); }
-  .btn-primary { background: var(--green); color: #fff; box-shadow: 0 4px 12px rgba(0,166,81,0.3); }
-  .btn-secondary { background: var(--bg); color: var(--text); border: 1.5px solid var(--border); }
-  .btn-scan { background: var(--blue); color: #fff; box-shadow: 0 4px 12px rgba(29,124,247,0.3); }
-  .btn-group { display: flex; gap: 10px; margin-top: 8px; }
-  .btn-group .btn { }
+  .sheet-btn-text { flex: 1; }
+  .sheet-btn-title { font-size: 15px; font-weight: 500; margin-bottom: 2px; }
+  .sheet-btn-sub { font-size: 12px; color: var(--text2); }
 
-  /* SCANNER */
-  .scanner-section { display: none; }
-  .scanner-section.visible { display: block; }
-  .video-container {
-    position: relative;
-    width: 100%;
-    border-radius: 12px;
-    overflow: hidden;
+  /* ── Scanner Modal ── */
+  .scanner-modal {
+    display: none;
+    position: fixed; inset: 0;
     background: #000;
-    aspect-ratio: 3/4;
-    margin-bottom: 12px;
+    z-index: 400;
+    flex-direction: column;
   }
-  #scanVideo {
-    width: 100%;
-    height: 100%;
+  .scanner-modal.open { display: flex; }
+
+  .scanner-header {
+    position: absolute; top: 0; left: 0; right: 0;
+    z-index: 10;
+    padding: 52px 20px 16px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .scanner-title { font-size: 17px; font-weight: 600; color: #fff; }
+  .scanner-close {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    border: none; color: #fff;
+    font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+
+  #scanner-video {
+    width: 100%; height: 100%;
     object-fit: cover;
     display: block;
   }
-  .scan-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+
+  .scanner-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
     pointer-events: none;
   }
   .scan-frame {
-    width: 72%;
-    aspect-ratio: 3/1;
-    border: 2.5px solid rgba(255,255,255,0.9);
-    border-radius: 8px;
+    width: 260px; height: 180px;
     position: relative;
-    box-shadow: 0 0 0 2000px rgba(0,0,0,0.35);
   }
-  .scan-frame::before, .scan-frame::after {
+  .scan-frame::before, .scan-frame::after,
+  .scan-frame-inner::before, .scan-frame-inner::after {
     content: '';
     position: absolute;
-    width: 20px; height: 20px;
+    width: 28px; height: 28px;
+    border-color: var(--accent);
+    border-style: solid;
   }
-  .scan-frame::before {
-    top: -3px; left: -3px;
-    border-top: 4px solid var(--green);
-    border-left: 4px solid var(--green);
-    border-radius: 4px 0 0 0;
-  }
-  .scan-frame::after {
-    bottom: -3px; right: -3px;
-    border-bottom: 4px solid var(--green);
-    border-right: 4px solid var(--green);
-    border-radius: 0 0 4px 0;
-  }
+  .scan-frame::before  { top: 0;    left: 0;  border-width: 3px 0 0 3px; }
+  .scan-frame::after   { top: 0;    right: 0; border-width: 3px 3px 0 0; }
+  .scan-frame-inner::before { bottom: 0; left: 0;  border-width: 0 0 3px 3px; }
+  .scan-frame-inner::after  { bottom: 0; right: 0; border-width: 0 3px 3px 0; }
+
   .scan-line {
     position: absolute;
-    left: 4px; right: 4px;
+    left: 0; right: 0;
     height: 2px;
-    background: linear-gradient(90deg, transparent, var(--green), transparent);
-    animation: scanAnim 1.8s ease-in-out infinite;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: scanline 2s ease-in-out infinite;
+    box-shadow: 0 0 8px var(--accent);
   }
-  @keyframes scanAnim {
-    0% { top: 4px; }
-    50% { top: calc(100% - 6px); }
-    100% { top: 4px; }
-  }
-  .scan-status {
-    background: rgba(0,0,0,0.7);
-    color: #fff;
-    text-align: center;
-    padding: 8px;
-    font-size: 13px;
-    font-weight: 500;
-  }
-  .scan-status.success { background: var(--green); }
-  .scan-status.error { background: var(--red); }
-  .scan-tip {
-    font-size: 12px;
-    color: var(--sub);
-    text-align: center;
-    padding: 8px;
-    line-height: 1.5;
+  @keyframes scanline {
+    0%   { top: 0; opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
   }
 
-  /* CALENDAR */
-  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-  .cal-header h2 { font-size: 18px; font-weight: 700; }
-  .cal-nav { display: flex; gap: 8px; }
-  .cal-nav button {
-    width: 36px; height: 36px;
-    border-radius: 50%;
-    border: 1.5px solid var(--border);
-    background: #fff;
-    display: flex; align-items: center; justify-content: center;
+  .scanner-bottom {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 20px 20px 48px;
+    background: linear-gradient(to top, rgba(0,0,0,0.85), transparent);
+    text-align: center;
+  }
+  .scanner-hint { color: rgba(255,255,255,0.7); font-size: 14px; }
+
+  /* camera start button */
+  .camera-start-wrap {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 20px; background: #000;
+    z-index: 5;
+  }
+  .camera-start-btn {
+    padding: 16px 36px;
+    border-radius: 50px;
+    background: var(--accent);
+    border: none;
+    color: #000;
+    font-size: 16px; font-weight: 700;
+    font-family: var(--font);
     cursor: pointer;
-    font-size: 16px;
+    transition: transform 0.15s;
   }
-  .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
-  .cal-day-name {
-    text-align: center;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--sub);
-    padding: 4px 0;
-  }
-  .cal-day {
-    aspect-ratio: 1;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    position: relative;
-    transition: background 0.15s;
-  }
-  .cal-day:empty { pointer-events: none; }
-  .cal-day.today { background: var(--green-light); color: var(--green); font-weight: 700; }
-  .cal-day.has-items::after {
-    content: '';
-    position: absolute;
-    bottom: 3px;
-    width: 5px; height: 5px;
-    border-radius: 50%;
-    background: var(--orange);
-  }
-  .cal-day.has-urgent::after { background: var(--red); }
-  .cal-day.selected { background: var(--green); color: #fff; }
-  .cal-day.selected::after { background: #fff; }
-  .cal-day:active { background: var(--bg); }
-  .cal-day.other-month { color: #ccc; }
-  .cal-detail { margin-top: 16px; }
-  .cal-detail-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; color: var(--sub); }
+  .camera-start-btn:active { transform: scale(0.96); }
+  .camera-start-desc { color: var(--text2); font-size: 14px; text-align: center; padding: 0 40px; line-height: 1.6; }
 
-  /* DISCOUNT */
-  .discount-item {
-    background: var(--card);
-    border-radius: var(--radius-sm);
-    padding: 14px 16px;
-    margin-bottom: 8px;
-    box-shadow: var(--shadow);
-    display: flex; align-items: center; gap: 12px;
-    border-left: 4px solid var(--orange);
-  }
-  .discount-pct {
-    background: var(--orange);
-    color: #fff;
-    font-size: 14px;
-    font-weight: 800;
-    border-radius: 8px;
-    padding: 6px 10px;
-    min-width: 52px;
-    text-align: center;
-    flex-shrink: 0;
-  }
-  .discount-info { flex: 1; min-width: 0; }
-  .discount-name { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .discount-meta { font-size: 12px; color: var(--sub); margin-top: 3px; }
-
-  /* ALERT */
-  .alert-item {
-    display: flex; gap: 12px; align-items: flex-start;
-    padding: 12px;
-    border-radius: var(--radius-sm);
-    margin-bottom: 8px;
-  }
-  .alert-item.urgent { background: var(--red-light); border-left: 4px solid var(--red); }
-  .alert-item.warning { background: var(--orange-light); border-left: 4px solid var(--orange); }
-  .alert-item.notice { background: var(--blue-light); border-left: 4px solid var(--blue); }
-  .alert-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
-  .alert-content .alert-title { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
-  .alert-content .alert-sub { font-size: 12px; color: var(--sub); }
-
-  /* EMPTY STATE */
-  .empty {
-    text-align: center;
-    padding: 48px 20px;
-    color: var(--sub);
-  }
-  .empty-icon { font-size: 48px; margin-bottom: 12px; }
-  .empty p { font-size: 14px; line-height: 1.6; }
-
-  /* TOAST */
-  .toast {
-    position: fixed;
-    top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px);
-    background: #1a1a1a;
-    color: #fff;
-    padding: 10px 20px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 600;
-    z-index: 1000;
-    opacity: 0;
-    transition: all 0.25s;
-    white-space: nowrap;
+  /* scanner status bar */
+  .scanner-status {
+    position: absolute; top: 110px; left: 0; right: 0;
+    z-index: 10; text-align: center;
     pointer-events: none;
   }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-  /* FOUND PRODUCT */
-  .found-product {
-    background: var(--green-light);
-    border: 1.5px solid var(--green);
-    border-radius: var(--radius-sm);
-    padding: 14px;
-    margin-bottom: 16px;
-    display: none;
+  .scanner-status-pill {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.3s;
   }
-  .found-product.visible { display: block; }
-  .found-product-name { font-weight: 700; font-size: 16px; color: var(--green); }
-  .found-product-meta { font-size: 12px; color: var(--sub); margin-top: 3px; }
-  .not-found-hint {
-    background: var(--orange-light);
-    border: 1.5px solid var(--orange);
-    border-radius: var(--radius-sm);
-    padding: 12px;
+  .status-scanning { background: rgba(232,197,71,0.15); color: var(--accent); border: 1px solid rgba(232,197,71,0.3); }
+  .status-found    { background: rgba(71,232,160,0.2);  color: var(--green);  border: 1px solid rgba(71,232,160,0.4); }
+  .status-error    { background: rgba(232,84,71,0.2);   color: var(--red);    border: 1px solid rgba(232,84,71,0.4); }
+
+  /* ── Add Form Modal ── */
+  .form-modal {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 400;
+    align-items: flex-end;
+  }
+  .form-modal.open { display: flex; }
+
+  .form-sheet {
+    width: 100%;
+    background: var(--surface);
+    border-radius: 24px 24px 0 0;
+    padding: 12px 20px 48px;
+    animation: slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+    max-height: 90dvh;
+    overflow-y: auto;
+  }
+
+  .form-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+
+  .form-group { margin-bottom: 16px; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--text2); letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 8px; display: block; }
+  .form-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .form-input:focus { border-color: var(--accent); }
+
+  .form-row { display: flex; gap: 12px; }
+  .form-row .form-group { flex: 1; }
+
+  .barcode-found-banner {
+    background: rgba(71,232,160,0.1);
+    border: 1px solid rgba(71,232,160,0.3);
+    border-radius: 12px;
+    padding: 12px 16px;
     margin-bottom: 16px;
     font-size: 13px;
-    color: #7a4500;
+    color: var(--green);
     display: none;
   }
-  .not-found-hint.visible { display: block; }
+  .barcode-found-banner.show { display: block; }
 
-  /* DIVIDER */
-  .or-divider {
-    display: flex; align-items: center; gap: 10px;
-    margin: 16px 0;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--sub);
+  .btn-submit {
+    width: 100%;
+    padding: 16px;
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius);
+    color: #000;
+    font-family: var(--font);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: opacity 0.15s;
   }
-  .or-divider::before, .or-divider::after {
-    content: '';
+  .btn-submit:active { opacity: 0.85; }
+  .btn-cancel {
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text2);
+    font-family: var(--font);
+    font-size: 15px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: all 0.15s;
+  }
+
+  /* ── Error / Empty ── */
+  .error-box {
+    position: absolute; bottom: 80px; left: 20px; right: 20px;
+    background: rgba(232,84,71,0.15);
+    border: 1px solid rgba(232,84,71,0.4);
+    border-radius: 14px;
+    padding: 16px;
+    color: var(--red);
+    font-size: 14px;
+    line-height: 1.6;
+    z-index: 20;
+    display: none;
+  }
+  .error-box.show { display: block; }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text3);
+  }
+  .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+  .empty-title { font-size: 17px; font-weight: 600; color: var(--text2); margin-bottom: 8px; }
+  .empty-sub { font-size: 14px; line-height: 1.6; }
+
+  /* ── Notification Toast ── */
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 12px 20px;
+    font-size: 14px; font-weight: 500;
+    z-index: 999;
+    transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    white-space: nowrap;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── Edit qty ── */
+  .qty-wrap { display: flex; align-items: center; gap: 10px; }
+  .qty-btn {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 20px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
+  }
+  .qty-input {
     flex: 1;
-    height: 1px;
-    background: var(--border);
+    text-align: center;
   }
+
+  .permission-guide {
+    color: rgba(255,255,255,0.5);
+    font-size: 13px;
+    text-align: center;
+    line-height: 1.7;
+    padding: 0 30px;
+  }
+  .permission-guide strong { color: var(--accent); }
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
-<header class="header">
-  <div class="header-top">
-    <div>
-      <h1>7-11 即期品管理</h1>
-      <div class="header-sub" id="headerDate">載入中...</div>
-    </div>
-    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-      <rect width="32" height="32" rx="8" fill="white" opacity="0.2"/>
-      <text x="4" y="22" font-size="16" font-family="Arial" font-weight="900" fill="white">711</text>
-    </svg>
+<!-- Header -->
+<div class="header">
+  <div class="header-row">
+    <div class="app-title">即期<span>.</span>管理</div>
+    <div style="font-size:12px;color:var(--text3);font-family:var(--mono)" id="today-date"></div>
   </div>
   <div class="header-stats">
-    <div class="stat-chip"><div class="dot" style="background:#ff6b6b"></div><span id="urgentCount">0</span> 緊急</div>
-    <div class="stat-chip"><div class="dot" style="background:#ffd93d"></div><span id="warningCount">0</span> 注意</div>
-    <div class="stat-chip"><div class="dot" style="background:white"></div><span id="totalCount">0</span> 總計</div>
+    <div class="stat-pill"><span class="dot dot-red"></span><span id="stat-urgent">0</span> 緊急</div>
+    <div class="stat-pill"><span class="dot dot-yellow"></span><span id="stat-soon">0</span> 即將到期</div>
+    <div class="stat-pill"><span class="dot dot-green"></span><span id="stat-ok">0</span> 安全</div>
   </div>
-</header>
-
-<!-- PAGES -->
-<div id="pageHome" class="page active">
-  <div class="section-title">今日 / 緊急</div>
-  <div id="listUrgent"></div>
-  <div class="section-title">7天內到期</div>
-  <div id="listWarning"></div>
-  <div class="section-title">安全庫存</div>
-  <div id="listSafe"></div>
 </div>
 
-<div id="pageCalendar" class="page">
-  <div class="card">
-    <div class="cal-header">
-      <div class="cal-nav">
-        <button onclick="changeMonth(-1)">&#8249;</button>
-      </div>
-      <h2 id="calMonthLabel"></h2>
-      <div class="cal-nav">
-        <button onclick="changeMonth(1)">&#8250;</button>
-      </div>
-    </div>
-    <div class="cal-grid" id="calDayNames"></div>
-    <div class="cal-grid" id="calGrid"></div>
-  </div>
-  <div class="cal-detail" id="calDetail"></div>
+<!-- Filter Tabs -->
+<div class="filter-bar">
+  <button class="filter-tab active" data-filter="all">全部</button>
+  <button class="filter-tab" data-filter="urgent">緊急</button>
+  <button class="filter-tab" data-filter="soon">即將到期</button>
+  <button class="filter-tab" data-filter="ok">安全</button>
+  <button class="filter-tab" data-filter="drink">飲料</button>
+  <button class="filter-tab" data-filter="food">食品</button>
+  <button class="filter-tab" data-filter="dairy">乳製品</button>
+  <button class="filter-tab" data-filter="snack">零食</button>
+  <button class="filter-tab" data-filter="daily">日用品</button>
 </div>
 
-<div id="pageDiscount" class="page">
-  <div class="card" style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border:none;">
-    <div style="font-weight:800;font-size:18px;color:#e65100;">打折專區</div>
-    <div style="font-size:13px;color:#bf360c;margin-top:4px;">30天內到期商品建議折扣</div>
-  </div>
-  <div id="discountList"></div>
-</div>
-
-<div id="pageAlert" class="page">
-  <div id="alertList"></div>
-</div>
+<!-- List -->
+<div class="list-wrap" id="list-wrap"></div>
 
 <!-- FAB -->
-<button class="fab" onclick="openAddModal()">
-  <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round">
-    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-  </svg>
-</button>
+<button class="fab" id="fab-btn">+</button>
 
-<!-- BOTTOM NAV -->
-<nav class="bottom-nav">
-  <button class="nav-item active" onclick="switchPage('Home',this)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-    <span>清單</span>
-  </button>
-  <button class="nav-item" onclick="switchPage('Calendar',this)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-    <span>行事曆</span>
-  </button>
-  <button class="nav-item" onclick="switchPage('Discount',this)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
-    <span>打折</span>
-  </button>
-  <button class="nav-item" onclick="switchPage('Alert',this)" id="alertNavBtn">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
-    <span>提醒</span>
-  </button>
-</nav>
-
-<!-- ADD MODAL -->
-<div class="modal-overlay" id="addModal">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <div class="modal-title">新增即期商品</div>
-
-    <!-- SCAN SECTION -->
-    <div class="scanner-section" id="scannerSection">
-      <div class="video-container">
-        <video id="scanVideo" autoplay muted playsinline webkit-playsinline></video>
-        <div class="scan-overlay">
-          <div class="scan-frame"><div class="scan-line"></div></div>
-        </div>
-        <div class="scan-status" id="scanStatus">對準商品條碼（直式條碼 / QR Code）</div>
+<!-- Action Sheet -->
+<div class="modal-backdrop" id="action-sheet-backdrop">
+  <div class="action-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">新增即期品</div>
+    <button class="sheet-btn" id="btn-scan">
+      <div class="sheet-btn-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="14" y1="14" x2="21" y2="14"/><line x1="14" y1="21" x2="21" y2="21"/><line x1="21" y1="14" x2="21" y2="21"/></svg>
       </div>
-      <div class="scan-tip">
-        ZXing 引擎 支援 EAN-13 / EAN-8 / Code128 / QR Code<br>
-        將條碼置中於框內，保持穩定 2 秒
+      <div class="sheet-btn-text">
+        <div class="sheet-btn-title">掃描條碼</div>
+        <div class="sheet-btn-sub">EAN-13 / QR Code 自動辨識商品</div>
       </div>
-      <button class="btn btn-secondary" onclick="stopScanner()" style="margin-top:8px;">
-        停止掃描
-      </button>
-    </div>
-
-    <!-- FOUND PRODUCT -->
-    <div class="found-product" id="foundProduct">
-      <div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:4px;">找到商品</div>
-      <div class="found-product-name" id="foundName"></div>
-      <div class="found-product-meta" id="foundMeta"></div>
-    </div>
-    <div class="not-found-hint" id="notFoundHint">
-      條碼未在資料庫中，請手動輸入商品名稱
-    </div>
-
-    <!-- FORM -->
-    <div id="addForm">
-      <div class="btn-group" style="margin-bottom:20px;">
-        <button class="btn btn-scan" onclick="startScanner()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="5" height="5"/><rect x="16" y="3" width="5" height="5"/><rect x="3" y="16" width="5" height="5"/><path d="M21 16h-3v3"/><path d="M15 21v-3h3"/><path d="M15 16h-2"/><path d="M21 21v-2"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="16" y1="10" x2="16" y2="14"/></svg>
-          掃描條碼
-        </button>
-        <button class="btn btn-secondary" onclick="resetForm()" style="max-width:100px;">
-          清除
-        </button>
+    </button>
+    <button class="sheet-btn" id="btn-manual">
+      <div class="sheet-btn-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </div>
-
-      <div class="or-divider">或手動輸入</div>
-
-      <div class="form-group">
-        <label class="form-label">商品名稱</label>
-        <input type="text" class="form-input" id="inputName" placeholder="輸入商品名稱..." autocomplete="off">
+      <div class="sheet-btn-text">
+        <div class="sheet-btn-title">手動輸入</div>
+        <div class="sheet-btn-sub">直接填寫商品名稱與日期</div>
       </div>
-
-      <div class="form-group">
-        <label class="form-label">商品分類</label>
-        <div class="cat-grid" id="catGrid"></div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">到期日</label>
-          <input type="date" class="form-input" id="inputDate">
-        </div>
-        <div class="form-group">
-          <label class="form-label">數量</label>
-          <input type="number" class="form-input" id="inputQty" value="1" min="1">
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">備註（選填）</label>
-        <input type="text" class="form-input" id="inputNote" placeholder="例：已開封、存放位置...">
-      </div>
-
-      <button class="btn btn-primary" onclick="addProduct()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-        確認新增
-      </button>
-      <button class="btn btn-secondary" onclick="closeModal()" style="margin-top:10px;">取消</button>
-    </div>
+    </button>
+    <button class="sheet-btn" onclick="closeActionSheet()" style="justify-content:center;color:var(--text2)">取消</button>
   </div>
 </div>
 
-<!-- TOAST -->
+<!-- Scanner Modal -->
+<div class="scanner-modal" id="scanner-modal">
+  <div class="scanner-header">
+    <div class="scanner-title">掃描條碼</div>
+    <button class="scanner-close" onclick="closeScanner()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <!-- Camera start prompt -->
+  <div class="camera-start-wrap" id="camera-start-wrap">
+    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    <button class="camera-start-btn" id="camera-start-btn" onclick="startCamera()">啟動相機</button>
+    <div class="camera-start-desc">點擊後系統將詢問相機使用權限，請選擇「允許」以開始掃描</div>
+    <div class="permission-guide">iOS 設定路徑：<br/><strong>設定 &gt; Safari &gt; 相機 &gt; 允許</strong></div>
+  </div>
+
+  <!-- Video -->
+  <video id="scanner-video" playsinline muted autoplay></video>
+
+  <!-- Overlay -->
+  <div class="scanner-overlay">
+    <div class="scan-frame">
+      <div class="scan-frame-inner"></div>
+      <div class="scan-line"></div>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="scanner-status" id="scanner-status" style="display:none">
+    <div class="scanner-status-pill status-scanning" id="scanner-status-pill">掃描中...</div>
+  </div>
+
+  <div class="scanner-bottom">
+    <div class="scanner-hint" id="scanner-hint">將條碼對準框線內</div>
+  </div>
+
+  <div class="error-box" id="scanner-error"></div>
+</div>
+
+<!-- Add Form Modal -->
+<div class="form-modal" id="form-modal">
+  <div class="form-sheet">
+    <div class="sheet-handle"></div>
+    <div class="form-title" id="form-title">新增商品</div>
+
+    <div class="barcode-found-banner" id="barcode-banner" id="barcode-banner">
+      成功辨識條碼 — 商品資訊已自動填入
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">商品名稱</label>
+      <input class="form-input" id="input-name" type="text" placeholder="請輸入商品名稱" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">分類</label>
+      <select class="form-input" id="input-category">
+        <option value="food">食品</option>
+        <option value="drink">飲料</option>
+        <option value="dairy">乳製品</option>
+        <option value="snack">零食</option>
+        <option value="daily">日用品</option>
+        <option value="frozen">冷凍品</option>
+        <option value="other">其他</option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">到期日</label>
+        <input class="form-input" id="input-date" type="date" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">數量</label>
+        <div class="qty-wrap">
+          <button class="qty-btn" onclick="changeQty(-1)">-</button>
+          <input class="form-input qty-input" id="input-qty" type="number" value="1" min="1" max="99" />
+          <button class="qty-btn" onclick="changeQty(1)">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">備註（選填）</label>
+      <input class="form-input" id="input-note" type="text" placeholder="例：B2 冰箱第二層" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">條碼（選填）</label>
+      <input class="form-input" id="input-barcode" type="text" placeholder="自動填入或手動輸入" />
+    </div>
+
+    <button class="btn-submit" onclick="submitForm()">儲存商品</button>
+    <button class="btn-cancel" onclick="closeForm()">取消</button>
+  </div>
+</div>
+
+<!-- Toast -->
 <div class="toast" id="toast"></div>
 
 <script>
-// ─── DATA ───────────────────────────────────────────────────────────────────
-const CATEGORIES = [
-  { id:'drink',  label:'飲料',  icon:'C' },
-  { id:'food',   label:'食品',  icon:'F' },
-  { id:'snack',  label:'零食',  icon:'S' },
-  { id:'bread',  label:'麵包',  icon:'B' },
-  { id:'dairy',  label:'乳品',  icon:'D' },
-  { id:'daily',  label:'日用品',icon:'U' },
-  { id:'frozen', label:'冷凍',  icon:'Z' },
-  { id:'other',  label:'其他',  icon:'O' },
-];
+// ── ZXing loaded via CDN
+// ─────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────
+const PRODUCTS_DB = {
+  // ── 飲料 ──
+  "4710088530068": { name: "茶裏王 日式無糖綠茶 580ml", category: "drink" },
+  "4710088530075": { name: "茶裏王 日式烏龍茶 580ml", category: "drink" },
+  "4710088530082": { name: "茶裏王 台灣茶 無糖紅茶 580ml", category: "drink" },
+  "4710088571030": { name: "統一純喫茶 茉莉綠茶 500ml", category: "drink" },
+  "4710088571047": { name: "統一純喫茶 烏龍茶 500ml", category: "drink" },
+  "4710088571054": { name: "統一純喫茶 麥香紅茶 500ml", category: "drink" },
+  "4710088500016": { name: "統一 陽光水蜜桃果汁 500ml", category: "drink" },
+  "4710088500023": { name: "統一 陽光柳橙汁 500ml", category: "drink" },
+  "4902102013642": { name: "可口可樂 350ml 鋁罐", category: "drink" },
+  "4902102013659": { name: "百事可樂 350ml 鋁罐", category: "drink" },
+  "4902102021630": { name: "可口可樂 600ml 寶特瓶", category: "drink" },
+  "4902102111119": { name: "雪碧 350ml 鋁罐", category: "drink" },
+  "4902102111126": { name: "芬達橙口味 350ml 鋁罐", category: "drink" },
+  "4710179010278": { name: "寶礦力水得 580ml", category: "drink" },
+  "4710179010285": { name: "寶礦力水得 350ml 鋁罐", category: "drink" },
+  "4710050022206": { name: "御茶園 每朝健康綠茶 650ml", category: "drink" },
+  "4710050022213": { name: "御茶園 特選日式綠茶 550ml", category: "drink" },
+  "4710050022220": { name: "御茶園 冷泡茶 無糖 550ml", category: "drink" },
+  "4710168001001": { name: "舒跑 運動飲料 590ml", category: "drink" },
+  "4710168001018": { name: "維他露 P 590ml", category: "drink" },
+  "4710168001025": { name: "原萃 日式綠茶 580ml", category: "drink" },
+  "4710168001032": { name: "原萃 玉露綠茶 580ml", category: "drink" },
+  "4710168001049": { name: "原萃 冷泡煎茶 580ml", category: "drink" },
+  "4719865101028": { name: "黑松 麥根沙士 330ml 鋁罐", category: "drink" },
+  "4719865101035": { name: "黑松汽水 330ml 鋁罐", category: "drink" },
+  "4710088562014": { name: "統一 麥香奶茶 375ml 利樂", category: "drink" },
+  "4710088562021": { name: "統一 麥香紅茶 375ml 利樂", category: "drink" },
+  "4902102032223": { name: "Minute Maid 美粒果柳橙 350ml", category: "drink" },
+  "4710125000093": { name: "泰山 純水 600ml", category: "drink" },
+  "4711271005048": { name: "悅氏 礦泉水 600ml", category: "drink" },
+  "4710088099005": { name: "統一 雙倍濃韻咖啡 240ml 罐", category: "drink" },
+  "4710088099012": { name: "統一 左岸咖啡館 250ml 罐", category: "drink" },
+  "4710088099029": { name: "統一 濃醇拿鐵 240ml 罐", category: "drink" },
+  "4901085500018": { name: "UCC 精選咖啡 185ml 罐", category: "drink" },
+  "4901085500025": { name: "UCC 微糖咖啡 185ml 罐", category: "drink" },
+  "4901085500032": { name: "UCC 無糖黑咖啡 185ml 罐", category: "drink" },
+  "4710088025107": { name: "CITY CAFE 拿鐵咖啡 450ml 瓶", category: "drink" },
+  "4710088025114": { name: "CITY CAFE 黑咖啡 450ml 瓶", category: "drink" },
+  "4710088025121": { name: "CITY CAFE 燕麥拿鐵 450ml 瓶", category: "drink" },
+  "4710088025138": { name: "CITY CAFE 焦糖瑪奇朵 450ml 瓶", category: "drink" },
+  "4710065500027": { name: "金車伯朗咖啡 240ml 罐", category: "drink" },
+  "4710065500034": { name: "金車伯朗藍山咖啡 240ml 罐", category: "drink" },
+  "4902102113304": { name: "爽健美茶 500ml", category: "drink" },
+  "4901777012805": { name: "紅牛 Energy Drink 250ml", category: "drink" },
+  "9001270718058": { name: "Monster Energy 355ml 罐", category: "drink" },
+  "4710088095007": { name: "飛騰 BIG 咖啡能量飲 250ml", category: "drink" },
+  "4719865102025": { name: "黑松 LIFT 蘋果西打 330ml 罐", category: "drink" },
 
-const PRODUCT_DB = {
-  // ── DRINKS ──
-  '4710085960013': { name:'茶裏王台灣茶無糖', cat:'drink', price:28 },
-  '4710085960020': { name:'茶裏王日式綠茶', cat:'drink', price:28 },
-  '4710085960037': { name:'茶裏王台灣紅茶', cat:'drink', price:28 },
-  '4710168001162': { name:'統一純喫茶茉莉綠茶', cat:'drink', price:25 },
-  '4710168001179': { name:'統一純喫茶烏龍茶', cat:'drink', price:25 },
-  '4710168001186': { name:'統一純喫茶麥香紅茶', cat:'drink', price:25 },
-  '4710085051013': { name:'統一麥香紅茶300ml', cat:'drink', price:20 },
-  '4710085051020': { name:'統一麥香奶茶300ml', cat:'drink', price:20 },
-  '4902102072373': { name:'可口可樂600ml', cat:'drink', price:32 },
-  '4902102072380': { name:'可口可樂零糖600ml', cat:'drink', price:32 },
-  '4902102072397': { name:'雪碧600ml', cat:'drink', price:32 },
-  '4902102072403': { name:'芬達橙味600ml', cat:'drink', price:32 },
-  '4902102001212': { name:'可口可樂易開罐330ml', cat:'drink', price:25 },
-  '4902102001229': { name:'可口可樂零糖易開罐', cat:'drink', price:25 },
-  '4901085175422': { name:'寶礦力水得運動飲料', cat:'drink', price:28 },
-  '4901085175439': { name:'寶礦力水得無糖', cat:'drink', price:28 },
-  '4710168009687': { name:'御茶園每朝健康綠茶', cat:'drink', price:28 },
-  '4710168009694': { name:'御茶園每朝健康烏龍', cat:'drink', price:28 },
-  '4710168009700': { name:'御茶園日式無糖煎茶', cat:'drink', price:28 },
-  '4710088310016': { name:'黑松沙士600ml', cat:'drink', price:25 },
-  '4710088310023': { name:'黑松汽水600ml', cat:'drink', price:25 },
-  '4710088250412': { name:'黑松茶花綠茶', cat:'drink', price:25 },
-  '4710857473022': { name:'原萃日本玉露綠茶', cat:'drink', price:35 },
-  '4710857473039': { name:'原萃台灣清香綠茶', cat:'drink', price:35 },
-  '4710857473046': { name:'原萃台灣高山烏龍', cat:'drink', price:35 },
-  '4710085099893': { name:'統一健康維他命飲料', cat:'drink', price:25 },
-  '4710085099916': { name:'統一多喝水礦泉水', cat:'drink', price:15 },
-  '4710085099923': { name:'統一多喝水鹼性水', cat:'drink', price:20 },
-  '0049000028928': { name:'百事可樂600ml', cat:'drink', price:32 },
-  '0049000028935': { name:'百事可樂無糖600ml', cat:'drink', price:32 },
-  '4714908790133': { name:'台塩海洋深層水', cat:'drink', price:20 },
-  '4710373061013': { name:'味丹多喝水純水', cat:'drink', price:15 },
-  '4710373061020': { name:'味丹沁涼礦泉水', cat:'drink', price:18 },
-  '4902102117777': { name:'可口可樂350ml寶特瓶', cat:'drink', price:28 },
-  '4710085960051': { name:'茶裏王濃味紅茶', cat:'drink', price:28 },
-  '4902102163347': { name:'Georgia咖啡', cat:'drink', price:32 },
-  '4902102163354': { name:'Georgia拿鐵咖啡', cat:'drink', price:32 },
-  '4714908081513': { name:'林鳳營鮮乳240ml', cat:'drink', price:32 },
-  '4714908081520': { name:'光泉鮮乳240ml', cat:'drink', price:32 },
-  '4711212003014': { name:'義美麥汁', cat:'drink', price:22 },
-  '4710085099930': { name:'統一陽光燕麥飲', cat:'drink', price:25 },
-  '4710168013394': { name:'波蜜果菜汁200ml', cat:'drink', price:20 },
-  '4710168013400': { name:'波蜜蕃茄汁200ml', cat:'drink', price:20 },
-  '4901085134870': { name:'午後紅茶原味', cat:'drink', price:25 },
-  '4901085134887': { name:'午後紅茶奶茶', cat:'drink', price:25 },
-  '4901085134894': { name:'午後紅茶檸檬紅茶', cat:'drink', price:25 },
-  '4901085022398': { name:'Calpis可爾必思', cat:'drink', price:30 },
+  // ── 乳製品 ──
+  "4710168002107": { name: "統一 瑞穗鮮乳 936ml 全脂", category: "dairy" },
+  "4710168002114": { name: "統一 瑞穗鮮乳 290ml 隨身瓶", category: "dairy" },
+  "4710168002121": { name: "統一 瑞穗低脂鮮乳 936ml", category: "dairy" },
+  "4710088058071": { name: "光泉鮮乳 936ml 全脂", category: "dairy" },
+  "4710088058088": { name: "光泉鮮乳 290ml 隨身瓶", category: "dairy" },
+  "4710088058095": { name: "光泉低脂鮮乳 936ml", category: "dairy" },
+  "4710088058101": { name: "光泉保久乳 200ml 利樂", category: "dairy" },
+  "4710088058118": { name: "光泉優質豆漿 936ml 無糖", category: "dairy" },
+  "4710088058125": { name: "光泉優質豆漿 936ml 微糖", category: "dairy" },
+  "4710088052390": { name: "統一 芝士乳酪球 100g", category: "dairy" },
+  "4710168003051": { name: "統一 AB 優酪乳 900ml 原味", category: "dairy" },
+  "4710168003068": { name: "統一 AB 優酪乳 200ml 草莓", category: "dairy" },
+  "4710088058132": { name: "光泉 活性乳酸菌 330ml", category: "dairy" },
+  "4710088058149": { name: "光泉 果汁優酪乳 500ml", category: "dairy" },
+  "4891028032106": { name: "養樂多 100ml 5瓶裝", category: "dairy" },
+  "4710024001038": { name: "義美 濃豆漿 257ml 無糖", category: "dairy" },
+  "4710024001045": { name: "義美 濃豆漿 257ml 微糖", category: "dairy" },
 
-  // ── FOOD / READY EAT ──
-  '4710085031015': { name:'統一鮮肉包', cat:'food', price:38 },
-  '4710085031022': { name:'統一高麗菜包', cat:'food', price:35 },
-  '4710085031039': { name:'統一叉燒包', cat:'food', price:38 },
-  '4710085031046': { name:'統一紅豆包', cat:'food', price:35 },
-  '4710085060015': { name:'7-11招牌便當', cat:'food', price:75 },
-  '4710085060022': { name:'7-11滷肉飯便當', cat:'food', price:65 },
-  '4710085060039': { name:'7-11雞腿便當', cat:'food', price:85 },
-  '4710085060046': { name:'7-11排骨便當', cat:'food', price:80 },
-  '4710085070014': { name:'7-11鮪魚飯糰', cat:'food', price:32 },
-  '4710085070021': { name:'7-11梅子飯糰', cat:'food', price:30 },
-  '4710085070038': { name:'7-11辣鮪魚手卷', cat:'food', price:38 },
-  '4710085070045': { name:'7-11燻雞手卷', cat:'food', price:40 },
-  '4710085070052': { name:'7-11蟹肉沙拉手卷', cat:'food', price:40 },
-  '4710085080013': { name:'7-11關東煮蘿蔔', cat:'food', price:15 },
-  '4710085080020': { name:'7-11關東煮貢丸', cat:'food', price:10 },
-  '4710085080037': { name:'7-11關東煮甜不辣', cat:'food', price:10 },
-  '4710085080044': { name:'7-11關東煮玉米', cat:'food', price:20 },
-  '4710085080051': { name:'7-11關東煮黑輪', cat:'food', price:12 },
-  '4710085080068': { name:'7-11關東煮茶葉蛋', cat:'food', price:12 },
-  '4710085090012': { name:'7-11台式涼麵', cat:'food', price:55 },
-  '4710085090029': { name:'7-11日式涼麵', cat:'food', price:60 },
-  '4710085090036': { name:'7-11麻醬涼麵', cat:'food', price:55 },
-  '4710085095017': { name:'7-11味噌湯', cat:'food', price:35 },
-  '4710085095024': { name:'7-11玉米濃湯', cat:'food', price:45 },
-  '4710085095031': { name:'7-11雞蛋沙拉三明治', cat:'food', price:45 },
-  '4710085095048': { name:'7-11燻雞三明治', cat:'food', price:50 },
-  '4710085095055': { name:'7-11BLT三明治', cat:'food', price:55 },
+  // ── 食品 / 便利商店現食 ──
+  "4710088010028": { name: "7-ELEVEN 鮪魚御飯糰", category: "food" },
+  "4710088010035": { name: "7-ELEVEN 鮭魚御飯糰", category: "food" },
+  "4710088010042": { name: "7-ELEVEN 梅子御飯糰", category: "food" },
+  "4710088010059": { name: "7-ELEVEN 雞肉飯御飯糰", category: "food" },
+  "4710088010066": { name: "7-ELEVEN 起司鮪魚三角飯糰", category: "food" },
+  "4710088010073": { name: "7-ELEVEN 培根蛋沙拉三明治", category: "food" },
+  "4710088010080": { name: "7-ELEVEN 鮪魚沙拉三明治", category: "food" },
+  "4710088010097": { name: "7-ELEVEN BLT 俱樂部三明治", category: "food" },
+  "4710088010103": { name: "7-ELEVEN 燒肉飯 (450g)", category: "food" },
+  "4710088010110": { name: "7-ELEVEN 雞腿便當", category: "food" },
+  "4710088010127": { name: "7-ELEVEN 排骨飯", category: "food" },
+  "4710088010134": { name: "7-ELEVEN 蔥花蛋炒飯", category: "food" },
+  "4710088010141": { name: "7-ELEVEN 關東煮 貢丸", category: "food" },
+  "4710088010158": { name: "7-ELEVEN 關東煮 蘿蔔", category: "food" },
+  "4710088010165": { name: "7-ELEVEN 關東煮 王子麵", category: "food" },
+  "4710088010172": { name: "7-ELEVEN 關東煮 黑輪", category: "food" },
+  "4710088010189": { name: "7-ELEVEN 關東煮 甜不辣", category: "food" },
+  "4710088010196": { name: "7-ELEVEN 關東煮 蛋", category: "food" },
+  "4710088010202": { name: "7-ELEVEN 關東煮 豬血糕", category: "food" },
+  "4710088010219": { name: "7-ELEVEN 雞皮串", category: "food" },
+  "4710088010226": { name: "7-ELEVEN 雞腿捲", category: "food" },
+  "4710088010233": { name: "7-ELEVEN 香雞腿", category: "food" },
+  "4710088010240": { name: "7-ELEVEN 霸王雞腿", category: "food" },
+  "4710088010257": { name: "7-ELEVEN 鹽酥雞 100g", category: "food" },
+  "4710088010264": { name: "7-ELEVEN 溫泉蛋", category: "food" },
+  "4710088010271": { name: "7-ELEVEN 茶葉蛋", category: "food" },
+  "4710088010288": { name: "7-ELEVEN 滷蛋", category: "food" },
+  "4710088020027": { name: "7-ELEVEN 明太子手捲", category: "food" },
+  "4710088020034": { name: "7-ELEVEN 泡菜豬肉手捲", category: "food" },
+  "4710088020041": { name: "7-ELEVEN 鮮蝦手捲", category: "food" },
+  "4710088030018": { name: "7-ELEVEN 冬粉湯 280g", category: "food" },
+  "4710088030025": { name: "7-ELEVEN 貢丸湯 280g", category: "food" },
+  "4710088030032": { name: "7-ELEVEN 排骨酥湯 280g", category: "food" },
+  "4710088040017": { name: "7-ELEVEN 涼麵 280g 芝麻醬", category: "food" },
+  "4710088040024": { name: "7-ELEVEN 涼麵 280g 胡麻醬", category: "food" },
+  "4710088050007": { name: "7-ELEVEN 沙拉 鮮蔬 180g", category: "food" },
+  "4710088050014": { name: "7-ELEVEN 沙拉 雞胸肉 200g", category: "food" },
 
-  // ── BREAD / PASTRY ──
-  '4710085041014': { name:'統一克林姆麵包', cat:'bread', price:25 },
-  '4710085041021': { name:'統一奶油麵包', cat:'bread', price:22 },
-  '4710085041038': { name:'統一巧克力麵包', cat:'bread', price:25 },
-  '4710085041045': { name:'7-11布丁', cat:'bread', price:38 },
-  '4710085041052': { name:'7-11焦糖布丁', cat:'bread', price:42 },
-  '4710085041069': { name:'7-11雞蛋塔', cat:'bread', price:28 },
-  '4710085041076': { name:'7-11葡式蛋塔', cat:'bread', price:32 },
-  '4710085041083': { name:'7-11可頌麵包', cat:'bread', price:32 },
-  '4710085041090': { name:'7-11法國麵包', cat:'bread', price:35 },
-  '4710085041107': { name:'7-11提拉米蘇', cat:'bread', price:55 },
-  '4710085041114': { name:'7-11草莓千層派', cat:'bread', price:65 },
-  '4710085041121': { name:'7-11芋泥蛋糕', cat:'bread', price:58 },
-  '4710085041138': { name:'7-11巧克力蛋糕', cat:'bread', price:55 },
-  '4710085041145': { name:'7-11瑞士捲', cat:'bread', price:48 },
-  '4710085041152': { name:'7-11地瓜紅豆麵包', cat:'bread', price:28 },
-  '4710085041169': { name:'7-11紅豆吐司', cat:'bread', price:35 },
-  '4710085041176': { name:'7-11蒜香麵包', cat:'bread', price:30 },
+  // ── 麵包 / 甜點 ──
+  "4710088060104": { name: "7-ELEVEN 克林姆麵包", category: "food" },
+  "4710088060111": { name: "7-ELEVEN 草莓奶油麵包", category: "food" },
+  "4710088060128": { name: "7-ELEVEN 巧克力可頌", category: "food" },
+  "4710088060135": { name: "7-ELEVEN 原味可頌", category: "food" },
+  "4710088060142": { name: "7-ELEVEN 起司可頌", category: "food" },
+  "4710088060159": { name: "7-ELEVEN 白吐司 300g", category: "food" },
+  "4710088060166": { name: "7-ELEVEN 全麥吐司 300g", category: "food" },
+  "4710088060173": { name: "7-ELEVEN 法式長棍麵包", category: "food" },
+  "4710088060180": { name: "7-ELEVEN 布丁 100g", category: "food" },
+  "4710088060197": { name: "7-ELEVEN 焦糖布丁 120g", category: "food" },
+  "4710088060203": { name: "7-ELEVEN 抹茶布丁 120g", category: "food" },
+  "4710088060210": { name: "7-ELEVEN 蛋塔 80g", category: "food" },
+  "4710088060227": { name: "7-ELEVEN 葡式蛋塔 75g", category: "food" },
+  "4710088060234": { name: "7-ELEVEN 提拉米蘇 100g", category: "food" },
+  "4710088060241": { name: "7-ELEVEN 生乳捲 150g", category: "food" },
+  "4710088060258": { name: "7-ELEVEN 草莓大福 60g", category: "food" },
+  "4710088060265": { name: "7-ELEVEN 芋泥大福 60g", category: "food" },
+  "4710088060272": { name: "7-ELEVEN 紅豆麻糬 80g", category: "food" },
+  "4710088060289": { name: "7-ELEVEN 起司蛋糕 90g", category: "food" },
 
-  // ── DAIRY ──
-  '4714908001018': { name:'林鳳營鮮乳936ml', cat:'dairy', price:85 },
-  '4714908001025': { name:'光泉鮮乳936ml', cat:'dairy', price:80 },
-  '4714908001032': { name:'統一低脂鮮乳', cat:'dairy', price:78 },
-  '4710085021016': { name:'統一瑞穗鮮乳200ml', cat:'dairy', price:28 },
-  '4710085021023': { name:'統一瑞穗咖啡牛乳', cat:'dairy', price:30 },
-  '4710085021030': { name:'統一瑞穗巧克力牛乳', cat:'dairy', price:30 },
-  '4714908031015': { name:'光泉優酪乳原味', cat:'dairy', price:35 },
-  '4714908031022': { name:'光泉優酪乳草莓', cat:'dairy', price:35 },
-  '4714908031039': { name:'統一AB優酪乳', cat:'dairy', price:38 },
-  '4710085021047': { name:'統一LP33優酪乳', cat:'dairy', price:42 },
-  '4710168100013': { name:'養樂多5瓶裝', cat:'dairy', price:62 },
-  '4714908041014': { name:'統一豆漿無糖', cat:'dairy', price:22 },
-  '4714908041021': { name:'統一豆漿有糖', cat:'dairy', price:22 },
-  '4714908041038': { name:'光泉豆漿無糖', cat:'dairy', price:22 },
-  '4711434000011': { name:'義美豆漿', cat:'dairy', price:20 },
-  '4714908051013': { name:'安佳奶油乳酪', cat:'dairy', price:55 },
+  // ── 泡麵 ──
+  "4710088070103": { name: "統一 肉燥麵 85g", category: "food" },
+  "4710088070110": { name: "統一 科學麵 70g", category: "food" },
+  "4710088070127": { name: "統一 滿漢大餐 牛肉麵 200g", category: "food" },
+  "4710088070134": { name: "統一 滿漢大餐 燒烤豬排麵 200g", category: "food" },
+  "4902105042601": { name: "日清 合味道 海鮮杯麵 75g", category: "food" },
+  "4902105042618": { name: "日清 合味道 咖哩杯麵 75g", category: "food" },
+  "4902105042625": { name: "日清 雞湯拉麵 85g", category: "food" },
+  "4710088070141": { name: "維力 炸醬麵 90g", category: "food" },
+  "4710088070158": { name: "維力 香辣拌麵 90g", category: "food" },
+  "4711271020034": { name: "味丹 個人廚房 麻辣鍋麵 178g", category: "food" },
 
-  // ── SNACKS ──
-  '4710088451313': { name:'樂事原味洋芋片', cat:'snack', price:35 },
-  '4710088451320': { name:'樂事番茄口味洋芋片', cat:'snack', price:35 },
-  '4710088451337': { name:'樂事海苔口味洋芋片', cat:'snack', price:35 },
-  '4710088451344': { name:'品客原味洋芋片', cat:'snack', price:55 },
-  '4710088451351': { name:'品客番茄口味', cat:'snack', price:55 },
-  '4710088451368': { name:'品客酸奶口味', cat:'snack', price:55 },
-  '4901001522248': { name:'POCKY巧克力棒', cat:'snack', price:35 },
-  '4901001522255': { name:'POCKY草莓棒', cat:'snack', price:35 },
-  '4901001522262': { name:'POCKY原味棒', cat:'snack', price:30 },
-  '4902111150510': { name:'Pretz沙拉棒', cat:'snack', price:30 },
-  '4902111150527': { name:'Pretz番茄棒', cat:'snack', price:30 },
-  '0070113000268': { name:'Kit Kat牛奶巧克力', cat:'snack', price:38 },
-  '0070113000275': { name:'Kit Kat草莓', cat:'snack', price:38 },
-  '4907155051024': { name:'M&M牛奶巧克力', cat:'snack', price:42 },
-  '4710085111016': { name:'旺旺仙貝', cat:'snack', price:25 },
-  '4710085111023': { name:'旺旺雪餅', cat:'snack', price:25 },
-  '4710085111030': { name:'旺仔小饅頭', cat:'snack', price:30 },
-  '4710085111047': { name:'乖乖蔥花口味', cat:'snack', price:20 },
-  '4710085111054': { name:'乖乖椰奶口味', cat:'snack', price:20 },
-  '4710085111061': { name:'卡迪那洋芋片', cat:'snack', price:32 },
-  '4710085111078': { name:'科學麵牛肉口味', cat:'snack', price:10 },
-  '4710085111085': { name:'科學麵辣味', cat:'snack', price:10 },
-  '4710085111092': { name:'王子麵', cat:'snack', price:10 },
-  '4710085111108': { name:'蝦條', cat:'snack', price:22 },
-  '4710085111115': { name:'雪之戀鱈魚香絲', cat:'snack', price:18 },
-  '4710085111122': { name:'北田能量99棒', cat:'snack', price:28 },
-  '4710085111139': { name:'義美夾心餅乾', cat:'snack', price:30 },
-  '4710085111146': { name:'義美薄片餅乾', cat:'snack', price:28 },
-  '4714408700011': { name:'喜年來蛋捲', cat:'snack', price:45 },
-  '4714408700028': { name:'喜年來奶油餅乾', cat:'snack', price:35 },
-  '4710085111153': { name:'統一大補帖杏仁', cat:'snack', price:30 },
-  '4710085111160': { name:'統一大補帖腰果', cat:'snack', price:35 },
+  // ── 零食 ──
+  "4710088080102": { name: "樂事 原味洋芋片 43g", category: "snack" },
+  "4710088080119": { name: "樂事 番茄口味洋芋片 43g", category: "snack" },
+  "4710088080126": { name: "樂事 海鹽口味洋芋片 43g", category: "snack" },
+  "4710088080133": { name: "樂事 美式BBQ洋芋片 43g", category: "snack" },
+  "4710088080140": { name: "Pringles 品客 原味 110g", category: "snack" },
+  "4710088080157": { name: "Pringles 品客 酸奶洋蔥 110g", category: "snack" },
+  "4710088080164": { name: "7-11 POCKY 草莓 40g", category: "snack" },
+  "4710088080171": { name: "7-11 POCKY 巧克力 40g", category: "snack" },
+  "4710088080188": { name: "7-11 Kit Kat 牛奶巧克力 4包", category: "snack" },
+  "4710088080195": { name: "7-11 Kit Kat 抹茶 4包", category: "snack" },
+  "4710088080201": { name: "旺旺 仙貝 60g", category: "snack" },
+  "4710088080218": { name: "旺旺 雪餅 60g", category: "snack" },
+  "4710088080225": { name: "乖乖 玉米脆果 55g", category: "snack" },
+  "4710088080232": { name: "乖乖 花生口味 55g", category: "snack" },
+  "4710088080249": { name: "77 乳加巧克力 30g", category: "snack" },
+  "4710088080256": { name: "義美 小泡芙 草莓 55g", category: "snack" },
+  "4710024080063": { name: "義美 小泡芙 巧克力 55g", category: "snack" },
+  "4710024080070": { name: "義美 夾心酥 花生 75g", category: "snack" },
+  "4710088080263": { name: "森永 Hi-Chew 草莓軟糖 35g", category: "snack" },
+  "4710088080270": { name: "Meiji 明治果汁軟糖 40g", category: "snack" },
+  "4710088080287": { name: "統一 Cheetos 奇多 起司球 60g", category: "snack" },
+  "4710088080294": { name: "Doritos 多力多滋 起司口味 100g", category: "snack" },
 
-  // ── INSTANT NOODLES ──
-  '4710085001018': { name:'統一滿漢大餐紅燒牛肉', cat:'food', price:45 },
-  '4710085001025': { name:'統一滿漢大餐香辣牛肉', cat:'food', price:45 },
-  '4710085001032': { name:'統一肉燥麵', cat:'food', price:20 },
-  '4710085001049': { name:'統一科學麵碗', cat:'food', price:30 },
-  '4710085001056': { name:'維力炸醬麵', cat:'food', price:20 },
-  '4710085001063': { name:'味王原汁牛肉麵', cat:'food', price:20 },
-  '4710085001070': { name:'泡麵韓式辛拉麵', cat:'food', price:35 },
-  '4710085001087': { name:'農心辛拉麵', cat:'food', price:38 },
-  '0070662006006': { name:'Cup Noodles杯麵蝦味', cat:'food', price:32 },
+  // ── 日用品 ──
+  "4710088090101": { name: "舒潔 濕式衛生紙 40抽", category: "daily" },
+  "4710088090118": { name: "舒潔 抽取式衛生紙 150抽", category: "daily" },
+  "4710088090125": { name: "舒潔 口袋包衛生紙 8包", category: "daily" },
+  "4710088090132": { name: "五月花 抽取式衛生紙 150抽", category: "daily" },
+  "4710088090149": { name: "五月花 口袋包 10包", category: "daily" },
+  "4710088090156": { name: "邦尼 成人紙尿褲 M 8片", category: "daily" },
+  "4710088090163": { name: "好奇 寶寶濕紙巾 80抽", category: "daily" },
+  "4710088090170": { name: "Kleenex 舒潔 面紙盒裝 100抽", category: "daily" },
+  "4710088090187": { name: "歐樂B 牙刷 中性毛 1入", category: "daily" },
+  "4710088090194": { name: "黑人 牙膏 超氟 150g", category: "daily" },
+  "4710088090200": { name: "多芬 沐浴乳 水嫩保濕 200ml", category: "daily" },
+  "4710088090217": { name: "海倫仙度絲 洗髮精 400ml 去屑", category: "daily" },
+  "4710088090224": { name: "沙威隆 抗菌洗手液 250ml", category: "daily" },
+  "4710088090231": { name: "一般口罩 7-11 獨立包裝 5入", category: "daily" },
+  "4710088090248": { name: "棉花棒 200支裝", category: "daily" },
+  "4710088090255": { name: "OK 繃 20片裝", category: "daily" },
+  "4710088090262": { name: "保險套 3入 岡本 003", category: "daily" },
 
-  // ── DAILY USE ──
-  '4710085201010': { name:'舒潔衛生紙', cat:'daily', price:35 },
-  '4710085201027': { name:'舒潔濕式衛生紙', cat:'daily', price:45 },
-  '4710085201034': { name:'好奇濕紙巾', cat:'daily', price:55 },
-  '4710085201041': { name:'康乃馨口罩10片', cat:'daily', price:65 },
-  '4710085201058': { name:'康乃馨口罩5片', cat:'daily', price:38 },
-  '4710085201065': { name:'舒潔面紙盒裝', cat:'daily', price:28 },
-  '4710085201072': { name:'7-11自有品牌衛生紙', cat:'daily', price:25 },
-  '4710085201089': { name:'棉花棒200支', cat:'daily', price:32 },
-  '4710085201096': { name:'棉花棒盒裝300支', cat:'daily', price:45 },
-  '4710085201102': { name:'牙線棒50支', cat:'daily', price:35 },
-
-  // ── FROZEN ──
-  '4710085301017': { name:'7-11冷凍水餃', cat:'frozen', price:65 },
-  '4710085301024': { name:'7-11冷凍湯圓', cat:'frozen', price:45 },
-  '4710085301031': { name:'7-11冷凍豬肉包', cat:'frozen', price:55 },
-  '4710085301048': { name:'7-11霜淇淋原味', cat:'frozen', price:35 },
-  '4710085301055': { name:'7-11霜淇淋草莓', cat:'frozen', price:38 },
-  '4902102098336': { name:'可爾必思冰淇淋', cat:'frozen', price:42 },
-  '4710085301062': { name:'哈根達斯草莓', cat:'frozen', price:135 },
-  '4710085301069': { name:'哈根達斯香草', cat:'frozen', price:135 },
-  '4710085301076': { name:'小美冰淇淋杯', cat:'frozen', price:20 },
-  '4710085301083': { name:'統一冰淇淋杯', cat:'frozen', price:22 },
+  // ── 冷凍食品 ──
+  "4710088100106": { name: "7-ELEVEN 台南鮮肉包 90g", category: "frozen" },
+  "4710088100113": { name: "7-ELEVEN 叉燒包 90g", category: "frozen" },
+  "4710088100120": { name: "7-ELEVEN 奶黃包 90g", category: "frozen" },
+  "4710088100137": { name: "7-ELEVEN 地瓜球 100g", category: "frozen" },
+  "4710088100144": { name: "7-ELEVEN 章魚燒 6顆", category: "frozen" },
+  "4710088100151": { name: "7-ELEVEN 黑糖珍珠湯圓 200g", category: "frozen" },
+  "4710088100168": { name: "義美 湯圓 紅豆 200g", category: "frozen" },
+  "4710088100175": { name: "義美 草仔粿 150g", category: "frozen" },
 };
 
-function lookupBarcode(code) {
-  const clean = code.replace(/[^0-9A-Za-z]/g, '');
-  if (PRODUCT_DB[clean]) return { ...PRODUCT_DB[clean], barcode: clean };
-  // try with/without leading zero
-  const alt = clean.startsWith('0') ? clean.slice(1) : '0' + clean;
-  if (PRODUCT_DB[alt]) return { ...PRODUCT_DB[alt], barcode: alt };
-  return null;
-}
-
-// ─── APP STATE ───────────────────────────────────────────────────────────────
-let products = JSON.parse(localStorage.getItem('711_products') || '[]');
-let calYear, calMonth, calSelected;
+// ─────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────
+let items = JSON.parse(localStorage.getItem('expiry_items') || '[]');
+let currentFilter = 'all';
+let cameraStream = null;
+let zxingReader = null;
 let scannerActive = false;
-let codeReader = null;
 
-function save() { localStorage.setItem('711_products', JSON.stringify(products)); }
-
-// ─── INIT ────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  const now = new Date();
-  calYear = now.getFullYear();
-  calMonth = now.getMonth();
-  document.getElementById('headerDate').textContent =
-    now.toLocaleDateString('zh-TW', { year:'numeric', month:'long', day:'numeric', weekday:'short' });
-
-  // set min date for input
-  document.getElementById('inputDate').min = toDateStr(now);
-
-  buildCatGrid();
-  renderAll();
-});
-
-function toDateStr(d) {
-  return d.toISOString().split('T')[0];
+// ─────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────
+function today() {
+  return new Date().toISOString().slice(0, 10);
 }
-
 function daysLeft(dateStr) {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const exp = new Date(dateStr + 'T00:00:00');
-  return Math.round((exp - today) / 86400000);
+  const d = new Date(dateStr);
+  const t = new Date(); t.setHours(0,0,0,0);
+  return Math.round((d - t) / 86400000);
+}
+function urgency(days) {
+  if (days < 0) return 'red';
+  if (days <= 2) return 'red';
+  if (days <= 7) return 'yellow';
+  return 'green';
+}
+function categoryLabel(cat) {
+  return { food:'食品', drink:'飲料', dairy:'乳製品', snack:'零食', daily:'日用品', frozen:'冷凍品', other:'其他' }[cat] || cat;
+}
+function saveItems() {
+  localStorage.setItem('expiry_items', JSON.stringify(items));
+}
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2800);
 }
 
-function urgencyClass(days) {
-  if (days <= 7) return 'urgent';
-  if (days <= 30) return 'warning';
-  return 'safe';
-}
-
-function getCatLabel(id) {
-  return (CATEGORIES.find(c => c.id === id) || { label: '其他' }).label;
-}
-
-function renderAll() {
-  renderList();
-  renderCalendar();
-  renderDiscount();
-  renderAlerts();
-  updateStats();
-}
-
-// ─── CATEGORY GRID ───────────────────────────────────────────────────────────
-let selectedCat = 'food';
-
-function buildCatGrid() {
-  const grid = document.getElementById('catGrid');
-  grid.innerHTML = '';
-  CATEGORIES.forEach(cat => {
-    const btn = document.createElement('button');
-    btn.className = 'cat-btn' + (cat.id === selectedCat ? ' selected' : '');
-    btn.innerHTML = `<span class="cat-label">${cat.label}</span>`;
-    btn.onclick = () => {
-      selectedCat = cat.id;
-      document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-    };
-    grid.appendChild(btn);
+// ─────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────
+function render() {
+  const wrap = document.getElementById('list-wrap');
+  let filtered = items.filter(item => {
+    if (currentFilter === 'all') return true;
+    if (currentFilter === 'urgent') return urgency(daysLeft(item.date)) === 'red';
+    if (currentFilter === 'soon') return urgency(daysLeft(item.date)) === 'yellow';
+    if (currentFilter === 'ok') return urgency(daysLeft(item.date)) === 'green';
+    return item.category === currentFilter;
   });
-}
 
-// ─── STATS ───────────────────────────────────────────────────────────────────
-function updateStats() {
-  const now = [];
-  let urgent = 0, warning = 0;
-  products.forEach(p => {
-    const d = daysLeft(p.date);
-    if (d <= 7) urgent++;
-    else if (d <= 30) warning++;
-  });
-  document.getElementById('urgentCount').textContent = urgent;
-  document.getElementById('warningCount').textContent = warning;
-  document.getElementById('totalCount').textContent = products.length;
-}
+  // Sort by date asc
+  filtered.sort((a,b) => new Date(a.date) - new Date(b.date));
 
-// ─── LIST RENDER ─────────────────────────────────────────────────────────────
-function renderList() {
-  const sorted = [...products].sort((a,b) => new Date(a.date) - new Date(b.date));
-  const urgent = sorted.filter(p => daysLeft(p.date) <= 7);
-  const warning = sorted.filter(p => { const d = daysLeft(p.date); return d > 7 && d <= 30; });
-  const safe = sorted.filter(p => daysLeft(p.date) > 30);
+  // Stats
+  const urgent = items.filter(i => urgency(daysLeft(i.date)) === 'red').length;
+  const soon   = items.filter(i => urgency(daysLeft(i.date)) === 'yellow').length;
+  const ok     = items.filter(i => urgency(daysLeft(i.date)) === 'green').length;
+  document.getElementById('stat-urgent').textContent = urgent;
+  document.getElementById('stat-soon').textContent = soon;
+  document.getElementById('stat-ok').textContent = ok;
 
-  renderSection('listUrgent', urgent);
-  renderSection('listWarning', warning);
-  renderSection('listSafe', safe);
-}
-
-function renderSection(id, list) {
-  const el = document.getElementById(id);
-  if (list.length === 0) {
-    el.innerHTML = `<div style="color:var(--sub);font-size:13px;padding:8px 4px;">無商品</div>`;
+  if (filtered.length === 0) {
+    wrap.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+      </div>
+      <div class="empty-title">目前無商品</div>
+      <div class="empty-sub">點擊右下角 + 按鈕<br>掃描或手動新增即期品</div>
+    </div>`;
     return;
   }
-  el.innerHTML = list.map(p => productCard(p)).join('');
-}
 
-function productCard(p) {
-  const d = daysLeft(p.date);
-  const cls = urgencyClass(d);
-  let dayLabel = '';
-  if (d < 0) dayLabel = `已過期 ${Math.abs(d)} 天`;
-  else if (d === 0) dayLabel = '今日到期';
-  else dayLabel = `還有 ${d} 天`;
-  const cat = getCatLabel(p.cat);
-  const qty = p.qty > 1 ? ` x${p.qty}` : '';
-  const note = p.note ? ` | ${p.note}` : '';
-  return `
-    <div class="product-item ${cls}">
-      <div class="product-icon ${cls}">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${cls==='urgent'?'#e63946':cls==='warning'?'#f7941d':'#00a651'}" stroke-width="2" stroke-linecap="round">
-          <rect x="3" y="3" width="18" height="18" rx="3"/>
-          <line x1="8" y1="9" x2="16" y2="9"/>
-          <line x1="8" y1="13" x2="14" y2="13"/>
-          <line x1="8" y1="17" x2="12" y2="17"/>
-        </svg>
-      </div>
-      <div class="product-info">
-        <div class="product-name">${p.name}${qty}</div>
-        <div class="product-meta">
-          <span>${cat}</span>
-          <span>${p.date}</span>
-          <span class="badge ${cls}">${dayLabel}</span>
-          ${note ? `<span>${note}</span>` : ''}
+  const groups = { red: [], yellow: [], green: [] };
+  filtered.forEach(item => groups[urgency(daysLeft(item.date))].push(item));
+
+  const groupTitles = { red: '緊急 / 已過期', yellow: '即將到期 (3-7 天)', green: '安全' };
+  let html = '';
+
+  ['red','yellow','green'].forEach(g => {
+    if (!groups[g].length) return;
+    html += `<div class="section-label">${groupTitles[g]}</div>`;
+    groups[g].forEach(item => {
+      const days = daysLeft(item.date);
+      const ug = urgency(days);
+      const color = ug === 'red' ? 'var(--red)' : ug === 'yellow' ? 'var(--accent)' : 'var(--green)';
+      const daysText = days < 0 ? `逾期 ${Math.abs(days)} 天` : days === 0 ? '今日到期' : `${days} 天`;
+      html += `
+      <div class="item-card">
+        <div class="item-urgency urgency-${ug}"></div>
+        <div class="item-info">
+          <div class="item-name">${item.name}</div>
+          <div class="item-meta">
+            <div class="item-category">${categoryLabel(item.category)}</div>
+            <div class="item-date">${item.date}</div>
+            ${item.qty > 1 ? `<div class="item-category">x${item.qty}</div>` : ''}
+          </div>
         </div>
-      </div>
-      <div class="product-actions">
-        <button class="btn-icon delete" onclick="deleteProduct('${p.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
-          </svg>
-        </button>
-      </div>
-    </div>`;
+        <div class="item-countdown">
+          <div class="countdown-num" style="color:${color}">${days < 0 ? '-' + Math.abs(days) : days}</div>
+          <div class="countdown-label">${days < 0 ? '天前' : '天後'}</div>
+        </div>
+        <div class="item-actions">
+          <button class="btn-icon danger" onclick="deleteItem('${item.id}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+          </button>
+        </div>
+      </div>`;
+    });
+  });
+
+  wrap.innerHTML = html;
 }
 
-function deleteProduct(id) {
-  products = products.filter(p => p.id !== id);
-  save(); renderAll(); showToast('已刪除商品');
+function deleteItem(id) {
+  items = items.filter(i => i.id !== id);
+  saveItems();
+  render();
+  showToast('已刪除商品');
 }
 
-// ─── ADD PRODUCT ─────────────────────────────────────────────────────────────
-function openAddModal() {
-  document.getElementById('addModal').classList.add('open');
-  const today = new Date();
-  document.getElementById('inputDate').value = toDateStr(today);
-  document.getElementById('inputName').value = '';
-  document.getElementById('inputQty').value = '1';
-  document.getElementById('inputNote').value = '';
-  document.getElementById('foundProduct').classList.remove('visible');
-  document.getElementById('notFoundHint').classList.remove('visible');
-  document.getElementById('scannerSection').classList.remove('visible');
-  selectedCat = 'food';
-  buildCatGrid();
+// ─────────────────────────────────────────
+// ACTION SHEET
+// ─────────────────────────────────────────
+document.getElementById('fab-btn').onclick = () => {
+  document.getElementById('action-sheet-backdrop').classList.add('open');
+};
+function closeActionSheet() {
+  document.getElementById('action-sheet-backdrop').classList.remove('open');
+}
+document.getElementById('action-sheet-backdrop').addEventListener('click', function(e) {
+  if (e.target === this) closeActionSheet();
+});
+
+// ─────────────────────────────────────────
+// SCANNER
+// ─────────────────────────────────────────
+document.getElementById('btn-scan').onclick = () => {
+  closeActionSheet();
+  openScanner();
+};
+
+function openScanner() {
+  const modal = document.getElementById('scanner-modal');
+  modal.classList.add('open');
+  document.getElementById('camera-start-wrap').style.display = 'flex';
+  document.getElementById('scanner-status').style.display = 'none';
+  document.getElementById('scanner-error').classList.remove('show');
+  const video = document.getElementById('scanner-video');
+  video.style.display = 'none';
 }
 
-function closeModal() {
-  stopScanner();
-  document.getElementById('addModal').classList.remove('open');
-}
+async function startCamera() {
+  const btn = document.getElementById('camera-start-btn');
+  btn.textContent = '啟動中...';
+  btn.disabled = true;
 
-function resetForm() {
-  document.getElementById('inputName').value = '';
-  document.getElementById('inputQty').value = '1';
-  document.getElementById('inputNote').value = '';
-  document.getElementById('foundProduct').classList.remove('visible');
-  document.getElementById('notFoundHint').classList.remove('visible');
-  showToast('已清除');
-}
-
-function addProduct() {
-  const name = document.getElementById('inputName').value.trim();
-  const date = document.getElementById('inputDate').value;
-  const qty = parseInt(document.getElementById('inputQty').value) || 1;
-  const note = document.getElementById('inputNote').value.trim();
-  if (!name) { showToast('請輸入商品名稱'); return; }
-  if (!date) { showToast('請選擇到期日'); return; }
-  const product = {
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2),
-    name, cat: selectedCat, date, qty, note,
-    addedAt: new Date().toISOString()
-  };
-  products.push(product);
-  save(); renderAll(); closeModal();
-  showToast(`已新增：${name}`);
-}
-
-// ─── ZXING SCANNER ───────────────────────────────────────────────────────────
-async function startScanner() {
-  const section = document.getElementById('scannerSection');
-  section.classList.add('visible');
-  const statusEl = document.getElementById('scanStatus');
-
-  statusEl.textContent = '請求相機權限中...';
-  statusEl.className = 'scan-status';
+  const video = document.getElementById('scanner-video');
+  const errorBox = document.getElementById('scanner-error');
+  errorBox.classList.remove('show');
 
   try {
-    // ZXingBrowser via UMD global
-    const ZXing = window.ZXingBrowser;
-    if (!ZXing) throw new Error('ZXing library not loaded');
+    // Try rear camera first
+    let stream = null;
+    const constraints = [
+      { video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+      { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } },
+      { video: { facingMode: 'user' } },
+      { video: true }
+    ];
 
-    codeReader = new ZXing.BrowserMultiFormatReader();
-
-    const deviceList = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
-    if (!deviceList || deviceList.length === 0) throw new Error('NoCamera');
-
-    // Prefer back camera
-    let deviceId;
-    const back = deviceList.find(d =>
-      /back|rear|environment/i.test(d.label) || deviceList.length === 1
-    );
-    deviceId = back ? back.deviceId : deviceList[deviceList.length - 1].deviceId;
-
-    statusEl.textContent = '相機啟動中...';
-    scannerActive = true;
-
-    await codeReader.decodeFromVideoDevice(deviceId, 'scanVideo', (result, err) => {
-      if (!scannerActive) return;
-      if (result) {
-        const code = result.getText();
-        handleBarcodeDetected(code);
+    for (const c of constraints) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(c);
+        if (stream) break;
+      } catch(e) {
+        console.warn('Camera constraint failed:', c, e.name);
       }
+    }
+
+    if (!stream) throw new Error('NoStream');
+
+    cameraStream = stream;
+
+    // Attach stream to video element manually
+    video.srcObject = stream;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('muted', '');
+    video.muted = true;
+
+    // Wait for video to be ready
+    await new Promise((resolve, reject) => {
+      video.onloadedmetadata = () => resolve();
+      video.onerror = (e) => reject(e);
+      setTimeout(() => resolve(), 3000); // fallback timeout
     });
 
-    statusEl.textContent = '對準條碼（直式 / QR Code）';
+    try { await video.play(); } catch(e) { console.warn('play() error:', e); }
 
-  } catch (e) {
-    scannerActive = false;
-    let msg = '';
-    if (e.name === 'NotAllowedError' || e.message.includes('Permission')) {
-      msg = '相機權限被拒絕 | 請至 iOS 設定 > Safari > 相機 > 允許';
-      statusEl.className = 'scan-status error';
-    } else if (e.name === 'NotFoundError' || e.message === 'NoCamera') {
-      msg = '找不到相機裝置';
-      statusEl.className = 'scan-status error';
-    } else {
-      msg = '相機啟動失敗：' + (e.message || e.name);
-      statusEl.className = 'scan-status error';
+    // Hide start prompt, show video
+    document.getElementById('camera-start-wrap').style.display = 'none';
+    video.style.display = 'block';
+    document.getElementById('scanner-status').style.display = 'block';
+
+    // Start ZXing decode loop
+    startZxingDecode(video, stream);
+
+  } catch(err) {
+    console.error('Camera error:', err);
+    btn.textContent = '啟動相機';
+    btn.disabled = false;
+
+    let msg = '無法啟動相機：' + err.message;
+    if (err.name === 'NotAllowedError' || err.message === 'Permission denied') {
+      msg = '相機權限被拒絕。\n\n請至：設定 > Safari > 相機 > 選擇「允許」，然後重新整理頁面再試一次。';
+    } else if (err.name === 'NotFoundError') {
+      msg = '找不到相機裝置，請確認裝置具有相機。';
+    } else if (err.name === 'NotReadableError') {
+      msg = '相機已被其他應用程式佔用，請關閉其他使用相機的 App 後再試。';
+    } else if (err.name === 'OverconstrainedError') {
+      msg = '相機設定不相容，請重試。';
     }
-    statusEl.textContent = msg;
-    console.error('Scanner error:', e);
+    errorBox.innerHTML = msg.replace(/\n/g, '<br>');
+    errorBox.classList.add('show');
   }
 }
 
-function stopScanner() {
-  scannerActive = false;
-  if (codeReader) {
-    try { codeReader.reset(); } catch(e) {}
-    codeReader = null;
+function startZxingDecode(video, stream) {
+  // Load ZXing and start decoding
+  if (typeof ZXing === 'undefined') {
+    setStatus('error', 'ZXing 函式庫載入失敗，請重新整理頁面');
+    return;
   }
-  const video = document.getElementById('scanVideo');
-  if (video && video.srcObject) {
-    video.srcObject.getTracks().forEach(t => t.stop());
-    video.srcObject = null;
+
+  try {
+    const hints = new Map();
+    const formats = [
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.QR_CODE,
+      ZXing.BarcodeFormat.DATA_MATRIX,
+    ];
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+
+    zxingReader = new ZXing.BrowserMultiFormatReader(hints);
+    scannerActive = true;
+    setStatus('scanning', '掃描中...');
+
+    // Use decodeFromStream for manual stream control
+    decodeLoop(video);
+
+  } catch(err) {
+    console.error('ZXing init error:', err);
+    setStatus('error', 'ZXing 初始化失敗: ' + err.message);
   }
-  document.getElementById('scannerSection').classList.remove('visible');
+}
+
+function decodeLoop(video) {
+  if (!scannerActive) return;
+
+  // Use canvas to capture frame
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  function tick() {
+    if (!scannerActive) return;
+    if (video.readyState < video.HAVE_ENOUGH_DATA) {
+      requestAnimationFrame(tick);
+      return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    if (canvas.width === 0 || canvas.height === 0) {
+      requestAnimationFrame(tick);
+      return;
+    }
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    try {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const luminance = new ZXing.ZXingBrowser.HTMLCanvasElementLuminanceSource(canvas);
+      const binarizer = new ZXing.HybridBinarizer(luminance);
+      const binaryBitmap = new ZXing.BinaryBitmap(binarizer);
+      const reader = new ZXing.BrowserMultiFormatReader();
+
+      // Try to decode
+      try {
+        const result = reader.decodeBitmap(binaryBitmap);
+        if (result && result.getText()) {
+          handleBarcodeDetected(result.getText());
+          return; // Stop loop after detection
+        }
+      } catch(notFound) {
+        // NotFoundException is normal when no barcode in frame
+      }
+    } catch(err) {
+      // ignore frame errors
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  requestAnimationFrame(tick);
+}
+
+function setStatus(type, msg) {
+  const pill = document.getElementById('scanner-status-pill');
+  const hint = document.getElementById('scanner-hint');
+  pill.className = 'scanner-status-pill status-' + type;
+  pill.textContent = msg;
+  if (type === 'found') hint.textContent = '商品已辨識！';
+  else if (type === 'error') hint.textContent = '請嘗試調整角度與距離';
+  else hint.textContent = '將條碼對準框線內，保持穩定';
 }
 
 function handleBarcodeDetected(code) {
-  if (!scannerActive) return;
-  stopScanner();
+  scannerActive = false;
+  setStatus('found', '辨識成功: ' + code);
+  console.log('Detected barcode:', code);
 
-  const statusEl = document.getElementById('scanStatus');
-  statusEl.textContent = '掃描成功：' + code;
-  statusEl.className = 'scan-status success';
+  // Vibrate if supported
+  if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 
-  const product = lookupBarcode(code);
+  setTimeout(() => {
+    closeScanner();
+    const product = PRODUCTS_DB[code];
+    openForm({ barcode: code, product });
+  }, 600);
+}
+
+function closeScanner() {
+  scannerActive = false;
+  document.getElementById('scanner-modal').classList.remove('open');
+
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+  }
+  const video = document.getElementById('scanner-video');
+  video.srcObject = null;
+  video.style.display = 'none';
+}
+
+// ─────────────────────────────────────────
+// FORM
+// ─────────────────────────────────────────
+document.getElementById('btn-manual').onclick = () => {
+  closeActionSheet();
+  openForm({});
+};
+
+function openForm({ barcode = '', product = null } = {}) {
+  const modal = document.getElementById('form-modal');
+  modal.classList.add('open');
+
+  // Set default date to tomorrow
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  document.getElementById('input-date').value = tomorrow.toISOString().slice(0, 10);
+  document.getElementById('input-qty').value = 1;
+  document.getElementById('input-note').value = '';
+  document.getElementById('input-barcode').value = barcode;
+
+  const banner = document.getElementById('barcode-banner');
+
   if (product) {
-    document.getElementById('foundProduct').classList.add('visible');
-    document.getElementById('foundName').textContent = product.name;
-    document.getElementById('foundMeta').textContent =
-      `分類：${getCatLabel(product.cat)}${product.price ? ' | 定價 NT$' + product.price : ''} | 條碼：${code}`;
-    document.getElementById('inputName').value = product.name;
-    selectedCat = product.cat;
-    buildCatGrid();
-    showToast('已找到商品，請設定到期日');
+    document.getElementById('input-name').value = product.name;
+    document.getElementById('input-category').value = product.category;
+    banner.textContent = '找到商品: ' + product.name;
+    banner.classList.add('show');
+    document.getElementById('form-title').textContent = '確認商品資訊';
   } else {
-    document.getElementById('notFoundHint').classList.add('visible');
-    document.getElementById('inputName').value = '';
-    document.getElementById('inputName').placeholder = '條碼：' + code + '（請輸入名稱）';
-    showToast('條碼未在資料庫，請手動輸入');
-  }
-}
-
-// ─── CALENDAR ────────────────────────────────────────────────────────────────
-function changeMonth(dir) {
-  calMonth += dir;
-  if (calMonth > 11) { calMonth = 0; calYear++; }
-  if (calMonth < 0) { calMonth = 11; calYear--; }
-  renderCalendar();
-}
-
-function renderCalendar() {
-  const months = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
-  document.getElementById('calMonthLabel').textContent = `${calYear} 年 ${months[calMonth]}`;
-
-  const days = ['日','一','二','三','四','五','六'];
-  const namesEl = document.getElementById('calDayNames');
-  namesEl.innerHTML = days.map(d => `<div class="cal-day-name">${d}</div>`).join('');
-
-  const today = new Date(); today.setHours(0,0,0,0);
-  const firstDay = new Date(calYear, calMonth, 1).getDay();
-  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-
-  // build map of expiry dates
-  const expiryMap = {};
-  products.forEach(p => {
-    const d = new Date(p.date + 'T00:00:00');
-    if (d.getFullYear() === calYear && d.getMonth() === calMonth) {
-      const key = d.getDate();
-      if (!expiryMap[key]) expiryMap[key] = [];
-      expiryMap[key].push(p);
+    document.getElementById('input-name').value = '';
+    document.getElementById('input-category').value = 'food';
+    banner.classList.remove('show');
+    document.getElementById('form-title').textContent = barcode ? '找不到商品資料，請手動填寫' : '手動新增商品';
+    if (barcode) {
+      banner.textContent = '條碼 ' + barcode + ' 不在資料庫，請手動填寫商品名稱';
+      banner.style.borderColor = 'rgba(232,197,71,0.4)';
+      banner.style.color = 'var(--accent)';
+      banner.style.background = 'rgba(232,197,71,0.08)';
+      banner.classList.add('show');
     }
+  }
+}
+
+function closeForm() {
+  document.getElementById('form-modal').classList.remove('open');
+}
+document.getElementById('form-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeForm();
+});
+
+function changeQty(delta) {
+  const input = document.getElementById('input-qty');
+  const val = parseInt(input.value) + delta;
+  if (val >= 1 && val <= 99) input.value = val;
+}
+
+function submitForm() {
+  const name = document.getElementById('input-name').value.trim();
+  const date = document.getElementById('input-date').value;
+  const category = document.getElementById('input-category').value;
+  const qty = parseInt(document.getElementById('input-qty').value) || 1;
+  const note = document.getElementById('input-note').value.trim();
+  const barcode = document.getElementById('input-barcode').value.trim();
+
+  if (!name) { showToast('請填寫商品名稱'); return; }
+  if (!date) { showToast('請選擇到期日'); return; }
+
+  const item = {
+    id: Date.now().toString(),
+    name, date, category, qty, note, barcode,
+    addedAt: new Date().toISOString()
+  };
+
+  items.unshift(item);
+  saveItems();
+  render();
+  closeForm();
+  showToast('已新增: ' + name);
+}
+
+// ─────────────────────────────────────────
+// FILTER
+// ─────────────────────────────────────────
+document.querySelectorAll('.filter-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    render();
   });
+});
 
-  const grid = document.getElementById('calGrid');
-  let html = '';
-  for (let i = 0; i < firstDay; i++) html += '<div></div>';
-  for (let d = 1; d <= daysInMonth; d++) {
-    const thisDate = new Date(calYear, calMonth, d);
-    const isToday = thisDate.getTime() === today.getTime();
-    const isSel = calSelected && calSelected.d === d && calSelected.m === calMonth && calSelected.y === calYear;
-    const items = expiryMap[d] || [];
-    const hasItems = items.length > 0;
-    const hasUrgent = items.some(p => daysLeft(p.date) <= 7);
-    let cls = 'cal-day';
-    if (isToday) cls += ' today';
-    if (isSel) cls += ' selected';
-    if (hasItems) cls += hasUrgent ? ' has-urgent' : ' has-items';
-    html += `<div class="${cls}" onclick="selectCalDay(${d},${calMonth},${calYear})">${d}</div>`;
+// ─────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────
+document.getElementById('today-date').textContent = new Date().toLocaleDateString('zh-TW', { year:'numeric', month:'long', day:'numeric' });
+render();
+</script>
+
+<!-- ZXing Library — loaded last to ensure DOM is ready -->
+<script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.4/es2015/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/es2015/index.min.js"></script>
+<script>
+// After ZXing loads, patch the decodeLoop to use correct API
+window.addEventListener('load', () => {
+  console.log('ZXing loaded:', typeof ZXing !== 'undefined' ? 'OK' : 'FAILED');
+  if (typeof ZXing === 'undefined') {
+    console.error('ZXing library not loaded!');
   }
-  grid.innerHTML = html;
-
-  if (calSelected) showCalDetail(calSelected.d, calSelected.m, calSelected.y);
-}
-
-function selectCalDay(d, m, y) {
-  calSelected = { d, m, y };
-  renderCalendar();
-}
-
-function showCalDetail(d, m, y) {
-  const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-  const items = products.filter(p => p.date === dateStr);
-  const detail = document.getElementById('calDetail');
-  if (items.length === 0) {
-    detail.innerHTML = `<div class="cal-detail-title">${m+1}/${d} 無到期商品</div>`;
-    return;
-  }
-  detail.innerHTML = `
-    <div class="cal-detail-title">${m+1}/${d} 到期商品（${items.length} 件）</div>
-    ${items.map(p => productCard(p)).join('')}`;
-}
-
-// ─── DISCOUNT ────────────────────────────────────────────────────────────────
-function getDiscount(days) {
-  if (days <= 0) return 50;
-  if (days <= 1) return 50;
-  if (days <= 3) return 60;
-  if (days <= 7) return 70;
-  if (days <= 14) return 80;
-  if (days <= 21) return 85;
-  return 90;
-}
-
-function renderDiscount() {
-  const list = document.getElementById('discountList');
-  const items = products
-    .filter(p => daysLeft(p.date) <= 30)
-    .sort((a,b) => new Date(a.date) - new Date(b.date));
-
-  if (items.length === 0) {
-    list.innerHTML = `<div class="empty"><div class="empty-icon">--</div><p>目前沒有30天內到期的商品</p></div>`;
-    return;
-  }
-
-  list.innerHTML = items.map(p => {
-    const d = daysLeft(p.date);
-    const pct = getDiscount(d);
-    const dayLabel = d <= 0 ? '已過期' : d === 0 ? '今日' : `${d}天後`;
-    return `
-      <div class="discount-item">
-        <div class="discount-pct">${pct}%<br><span style="font-size:10px;font-weight:600;">折</span></div>
-        <div class="discount-info">
-          <div class="discount-name">${p.name}</div>
-          <div class="discount-meta">${p.date} | ${dayLabel}到期 | ${getCatLabel(p.cat)}</div>
-        </div>
-      </div>`;
-  }).join('');
-}
-
-// ─── ALERTS ──────────────────────────────────────────────────────────────────
-function renderAlerts() {
-  const list = document.getElementById('alertList');
-  const today = products.filter(p => daysLeft(p.date) === 0);
-  const expired = products.filter(p => daysLeft(p.date) < 0);
-  const week = products.filter(p => { const d = daysLeft(p.date); return d > 0 && d <= 7; });
-  const month = products.filter(p => { const d = daysLeft(p.date); return d > 7 && d <= 30; });
-
-  let html = '';
-
-  if (expired.length > 0) {
-    html += `<div class="section-title" style="color:var(--red);">已過期</div>`;
-    html += expired.map(p => `
-      <div class="alert-item urgent">
-        <div style="width:20px;height:20px;flex-shrink:0;margin-top:2px;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#e63946" stroke-width="2.5" stroke-linecap="round" width="20" height="20">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-        </div>
-        <div class="alert-content">
-          <div class="alert-title">${p.name}</div>
-          <div class="alert-sub">到期日 ${p.date} | 已過期 ${Math.abs(daysLeft(p.date))} 天</div>
-        </div>
-      </div>`).join('');
-  }
-
-  if (today.length > 0) {
-    html += `<div class="section-title" style="color:var(--red);">今日到期</div>`;
-    html += today.map(p => `
-      <div class="alert-item urgent">
-        <div style="width:20px;height:20px;flex-shrink:0;margin-top:2px;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#e63946" stroke-width="2.5" stroke-linecap="round" width="20" height="20">
-            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-          </svg>
-        </div>
-        <div class="alert-content">
-          <div class="alert-title">${p.name}</div>
-          <div class="alert-sub">今日到期 | 建議打 50 折</div>
-        </div>
-      </div>`).join('');
-  }
-
-  if (week.length > 0) {
-    html += `<div class="section-title">7 天內到期</div>`;
-    html += week.map(p => `
-      <div class="alert-item warning">
-        <div style="width:20px;height:20px;flex-shrink:0;margin-top:2px;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#f7941d" stroke-width="2.5" stroke-linecap="round" width="20" height="20">
-            <circle cx="12" cy="12" r="10"/>
-            <polyline points="12 6 12 12 16 14"/>
-          </svg>
-        </div>
-        <div class="alert-content">
-          <div class="alert-title">${p.name}</div>
-          <div class="alert-sub">${p.date} 到期 | 還有 ${daysLeft(p.date)} 天</div>
-        </div>
-      </div>`).join('');
-  }
-
-  if (month.length > 0) {
-    html += `<div class="section-title">30 天內到期</div>`;
-    html += month.map(p => `
-      <div class="alert-item notice">
-        <div style="width:20px;height:20px;flex-shrink:0;margin-top:2px;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#1d7cf7" stroke-width="2.5" stroke-linecap="round" width="20" height="20">
-            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-            <path d="M13.73 21a2 2 0 01-3.46 0"/>
-          </svg>
-        </div>
-        <div class="alert-content">
-          <div class="alert-title">${p.name}</div>
-          <div class="alert-sub">${p.date} 到期 | 還有 ${daysLeft(p.date)} 天</div>
-        </div>
-      </div>`).join('');
-  }
-
-  if (html === '') {
-    html = `<div class="empty"><div style="font-size:48px;margin-bottom:12px;color:var(--green);">
-      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#00a651" stroke-width="1.5" stroke-linecap="round">
-        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
-        <polyline points="22 4 12 14.01 9 11.01"/>
-      </svg>
-    </div><p>目前沒有即將到期的提醒<br>所有商品狀態良好</p></div>`;
-  }
-
-  list.innerHTML = html;
-}
-
-// ─── PAGE NAV ────────────────────────────────────────────────────────────────
-function switchPage(name, btn) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-  document.getElementById('page' + name).classList.add('active');
-  btn.classList.add('active');
-  if (name === 'Calendar') renderCalendar();
-}
-
-// ─── TOAST ───────────────────────────────────────────────────────────────────
-let toastTimer;
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
-}
-
-// Close modal on overlay click
-document.getElementById('addModal').addEventListener('click', function(e) {
-  if (e.target === this) closeModal();
 });
 </script>
 </body>
