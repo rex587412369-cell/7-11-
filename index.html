@@ -1,807 +1,530 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>7-11 即期品管理</title>
-<script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-<style>
-  :root {
-    --green:#007b40;--green2:#00a550;--orange:#f97316;
-    --red:#ef4444;--yellow:#fbbf24;--bg:#f5f5f0;
-    --card:#fff;--border:#e2e8f0;--text:#1a1a1a;--sub:#64748b;
-  }
-  *{box-sizing:border-box;margin:0;padding:0;font-family:'Helvetica Neue',Arial,sans-serif}
-  body{background:var(--bg);color:var(--text);min-height:100vh}
-  header{background:var(--green);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
-  header h1{font-size:18px;font-weight:700}
-  header span{font-size:12px;background:var(--green2);padding:2px 8px;border-radius:99px}
-  .tabs{display:flex;background:#fff;border-bottom:2px solid var(--border);position:sticky;top:49px;z-index:99}
-  .tab{flex:1;padding:11px 4px;text-align:center;font-size:13px;font-weight:600;color:var(--sub);cursor:pointer;border:none;background:none;transition:.2s}
-  .tab.active{color:var(--green);border-bottom:3px solid var(--green)}
-  .page{display:none;padding:12px}
-  .page.active{display:block}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>7-11 即期品管理系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- html5-qrcode: 最穩定的行動裝置條碼掃描庫，內建 ZXing -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
-  /* === SCAN PAGE === */
-  .scan-area{background:#000;border-radius:12px;overflow:hidden;position:relative;aspect-ratio:4/3;max-height:52vw}
-  #scanner-video{width:100%;height:100%;object-fit:cover;display:block}
-  .scan-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
-  .scan-frame{width:65%;aspect-ratio:1;border:2px solid rgba(255,255,255,.8);border-radius:8px;position:relative}
-  .scan-frame::before,.scan-frame::after{content:'';position:absolute;width:20px;height:20px;border-color:var(--green2);border-style:solid}
-  .scan-frame::before{top:-2px;left:-2px;border-width:3px 0 0 3px;border-radius:4px 0 0 0}
-  .scan-frame::after{bottom:-2px;right:-2px;border-width:0 3px 3px 0;border-radius:0 0 4px 0}
-  .scan-line{position:absolute;width:90%;height:2px;background:linear-gradient(90deg,transparent,var(--green2),transparent);animation:scanLine 2s linear infinite;top:10%}
-  @keyframes scanLine{0%{top:10%}50%{top:85%}100%{top:10%}}
-  #status-bar{margin-top:8px;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:600;text-align:center;background:#e0f2e9;color:var(--green)}
-  #status-bar.error{background:#fee2e2;color:var(--red)}
-  #status-bar.warning{background:#fef9c3;color:#b45309}
-  .scan-btn{width:100%;margin-top:10px;padding:13px;border-radius:10px;font-size:15px;font-weight:700;border:none;cursor:pointer;background:var(--green);color:#fff;transition:.15s}
-  .scan-btn:active{transform:scale(.97)}
-  .scan-btn.stop{background:#ef4444}
-  canvas{display:none}
-  .form-section{margin-top:12px;background:var(--card);border-radius:12px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
-  .form-section h3{font-size:14px;font-weight:700;color:var(--green);margin-bottom:10px}
-  .form-row{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
-  .form-row label{font-size:12px;font-weight:600;color:var(--sub)}
-  .form-row input,.form-row select{padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;outline:none;transition:.2s}
-  .form-row input:focus,.form-row select:focus{border-color:var(--green)}
-  .save-btn{width:100%;padding:12px;background:var(--orange);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer}
+    <style>
+        body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f3f4f6; padding-bottom: 70px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-  /* === INVENTORY === */
-  .filter-bar{display:flex;gap:6px;margin-bottom:10px;overflow-x:auto;padding-bottom:4px}
-  .filter-btn{padding:6px 14px;border-radius:99px;border:1.5px solid var(--border);background:#fff;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;color:var(--sub)}
-  .filter-btn.active{background:var(--green);color:#fff;border-color:var(--green)}
-  .item-card{background:var(--card);border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);border-left:4px solid var(--border);position:relative}
-  .item-card.urgent{border-left-color:var(--red)}
-  .item-card.soon{border-left-color:var(--orange)}
-  .item-card.ok{border-left-color:var(--green2)}
-  .item-card.discount{border-left-color:var(--yellow);background:#fffbeb}
-  .item-top{display:flex;justify-content:space-between;align-items:flex-start}
-  .item-name{font-size:14px;font-weight:700}
-  .item-badge{font-size:11px;padding:2px 8px;border-radius:99px;font-weight:700}
-  .badge-red{background:#fee2e2;color:var(--red)}
-  .badge-orange{background:#ffedd5;color:#c2410c}
-  .badge-green{background:#d1fae5;color:#065f46}
-  .badge-yellow{background:#fef9c3;color:#92400e}
-  .item-meta{font-size:12px;color:var(--sub);margin-top:4px}
-  .item-actions{display:flex;gap:6px;margin-top:8px}
-  .btn-small{padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer}
-  .btn-disc{background:#fef9c3;color:#92400e}
-  .btn-del{background:#fee2e2;color:var(--red)}
-  .btn-restore{background:#d1fae5;color:#065f46}
-  .empty-state{text-align:center;padding:40px 20px;color:var(--sub);font-size:14px}
+        /* 掃描器外殼 */
+        #reader {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+        }
+        /* 強制隱藏 html5-qrcode 自帶的醜陋 UI 元件 */
+        #reader__scan_region { position: relative; }
+        #reader__dashboard { display: none !important; }
+        #reader__status_span { display: none !important; }
+        #reader img { display: none !important; }
+        #reader select { display: none !important; }
 
-  /* === CALENDAR === */
-  .cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-  .cal-nav{background:none;border:1.5px solid var(--border);border-radius:8px;width:34px;height:34px;font-size:18px;cursor:pointer;color:var(--text)}
-  .cal-title{font-size:16px;font-weight:700}
-  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-  .cal-dow{text-align:center;font-size:11px;font-weight:700;color:var(--sub);padding:4px 0}
-  .cal-day{aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:13px;cursor:pointer;border:2px solid transparent;transition:.15s;position:relative}
-  .cal-day:hover{background:#f0fdf4}
-  .cal-day.today{background:#d1fae5;font-weight:700}
-  .cal-day.has-urgent{background:#fee2e2;color:var(--red);font-weight:700}
-  .cal-day.has-soon{background:#ffedd5;color:#c2410c;font-weight:700}
-  .cal-day.has-discount{border-color:var(--yellow)}
-  .cal-day.selected{outline:2px solid var(--green)}
-  .cal-day .dot{width:5px;height:5px;border-radius:50%;background:var(--green);position:absolute;bottom:3px}
-  .cal-detail{margin-top:12px;background:var(--card);border-radius:12px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
-  .cal-detail h3{font-size:13px;font-weight:700;color:var(--green);margin-bottom:8px}
-  .upcoming-list{margin-top:12px}
-  .upcoming-item{padding:10px 12px;background:var(--card);border-radius:10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+        /* 自訂掃描動畫 */
+        .scanner-wrapper { position: relative; display: none; margin-bottom: 1rem; }
+        .laser {
+            position: absolute; width: 80%; left: 10%; height: 2px;
+            background: #22c55e; box-shadow: 0 0 10px #22c55e;
+            top: 50%; z-index: 10;
+            animation: scan 2s infinite linear;
+            pointer-events: none;
+        }
+        @keyframes scan { 0% { top: 20%; } 50% { top: 80%; } 100% { top: 20%; } }
+        .scan-corners {
+            position: absolute; inset: 0; pointer-events: none; z-index: 9;
+            border: 2px solid transparent;
+            background:
+                linear-gradient(to right, #22c55e 4px, transparent 4px) top left / 30px 30px no-repeat,
+                linear-gradient(to bottom, #22c55e 4px, transparent 4px) top left / 30px 30px no-repeat,
+                linear-gradient(to left, #22c55e 4px, transparent 4px) top right / 30px 30px no-repeat,
+                linear-gradient(to bottom, #22c55e 4px, transparent 4px) top right / 30px 30px no-repeat,
+                linear-gradient(to right, #22c55e 4px, transparent 4px) bottom left / 30px 30px no-repeat,
+                linear-gradient(to top, #22c55e 4px, transparent 4px) bottom left / 30px 30px no-repeat,
+                linear-gradient(to left, #22c55e 4px, transparent 4px) bottom right / 30px 30px no-repeat,
+                linear-gradient(to top, #22c55e 4px, transparent 4px) bottom right / 30px 30px no-repeat;
+        }
 
-  /* === ALERT === */
-  .alert-section{margin-bottom:14px}
-  .alert-section h3{font-size:13px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px}
-  .alert-count{background:var(--red);color:#fff;font-size:11px;padding:1px 7px;border-radius:99px}
-  .alert-count.orange{background:var(--orange)}
-  .alert-count.yellow{background:var(--yellow);color:#92400e}
-  .alert-item{padding:10px 12px;background:var(--card);border-radius:10px;margin-bottom:5px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
-  .push-btn{width:100%;padding:11px;background:var(--green);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:14px}
-
-  /* === DISCOUNT === */
-  .disc-card{background:var(--card);border-radius:12px;padding:12px;margin-bottom:8px;border:2px solid var(--yellow);box-shadow:0 1px 4px rgba(0,0,0,.08)}
-  .disc-price{font-size:18px;font-weight:800;color:var(--orange)}
-  .disc-original{font-size:13px;color:var(--sub);text-decoration:line-through}
-  .disc-badge{background:var(--orange);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px}
-  .section-title{font-size:15px;font-weight:800;color:var(--green);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--green)}
-  #lib-status{font-size:11px;padding:4px 10px;border-radius:6px;margin-bottom:8px;display:inline-block;font-weight:600}
-</style>
+        /* 行事曆 */
+        .cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 50%; margin: 2px auto; width: 32px; font-weight: 500; cursor: pointer; }
+        .has-30days { background: #fb923c; color: white; }
+        .has-7days { background: #ef4444; color: white; }
+        .is-discount { border: 2px solid #ec4899; }
+    </style>
 </head>
-<body>
-<header>
-  <div>
-    <h1>7-11 即期品管理</h1>
-  </div>
-  <span id="total-badge">0 件</span>
-</header>
+<body class="text-gray-800">
 
-<div class="tabs">
-  <button class="tab active" onclick="switchTab('scan')">掃描</button>
-  <button class="tab" onclick="switchTab('inventory')">庫存</button>
-  <button class="tab" onclick="switchTab('calendar')">行事曆</button>
-  <button class="tab" onclick="switchTab('alerts')">提醒</button>
-  <button class="tab" onclick="switchTab('discount')">打折</button>
-</div>
+    <header class="bg-green-600 text-white p-4 shadow-md sticky top-0 z-20 flex justify-between items-center">
+        <h1 class="text-xl font-bold"><i class="fa-solid fa-store mr-2"></i>即期品管理系統</h1>
+        <span id="engine-status" class="text-xs bg-green-800 px-2 py-1 rounded">初始化中...</span>
+    </header>
 
-<!-- SCAN PAGE -->
-<div id="tab-scan" class="page active">
-  <div id="lib-status" style="background:#fef9c3;color:#b45309">偵測掃描引擎中...</div>
-  <div class="scan-area">
-    <video id="scanner-video" playsinline muted autoplay style="width:100%;height:100%;object-fit:cover;display:block"></video>
-    <canvas id="qr-canvas"></canvas>
-    <div class="scan-overlay" id="scan-overlay">
-      <div style="text-align:center;color:rgba(255,255,255,.7);font-size:14px">按下開始掃描</div>
-    </div>
-  </div>
-  <div id="status-bar">準備就緒 — 按下開始掃描</div>
-  <button class="scan-btn" id="scan-btn" onclick="toggleScan()">開始掃描</button>
-  <div style="margin-top:8px;display:flex;gap:8px">
-    <button class="scan-btn" style="background:#475569;font-size:13px;padding:10px" onclick="switchCamera()">切換鏡頭</button>
-    <button class="scan-btn" style="background:#0ea5e9;font-size:13px;padding:10px" onclick="manualEntry()">手動輸入條碼</button>
-  </div>
+    <main class="p-4">
 
-  <div class="form-section">
-    <h3>商品資訊</h3>
-    <div class="form-row">
-      <label>商品名稱</label>
-      <input id="f-name" type="text" placeholder="掃描後自動填入或手動輸入"/>
-    </div>
-    <div class="form-row">
-      <label>條碼</label>
-      <input id="f-barcode" type="text" placeholder="掃描後自動填入"/>
-    </div>
-    <div class="form-row">
-      <label>分類</label>
-      <select id="f-cat">
-        <option value="飲料">飲料</option>
-        <option value="食品">食品</option>
-        <option value="麵包">麵包</option>
-        <option value="乳品">乳品</option>
-        <option value="零食">零食</option>
-        <option value="日用品">日用品</option>
-        <option value="冷凍品">冷凍品</option>
-        <option value="其他">其他</option>
-      </select>
-    </div>
-    <div class="form-row">
-      <label>售價</label>
-      <input id="f-price" type="number" placeholder="例如 35"/>
-    </div>
-    <div class="form-row">
-      <label>到期日</label>
-      <input id="f-exp" type="date"/>
-    </div>
-    <div class="form-row">
-      <label>數量</label>
-      <input id="f-qty" type="number" value="1" min="1"/>
-    </div>
-    <button class="save-btn" onclick="saveItem()">儲存商品</button>
-  </div>
-</div>
+        <!-- ====== 掃描登錄 ====== -->
+        <section id="tab-scan" class="tab-content active">
+            <h2 class="text-lg font-bold mb-4 border-b pb-2"><i class="fa-solid fa-barcode mr-2"></i>掃描登錄商品</h2>
 
-<!-- INVENTORY PAGE -->
-<div id="tab-inventory" class="page">
-  <div class="filter-bar">
-    <button class="filter-btn active" onclick="setFilter('all',this)">全部</button>
-    <button class="filter-btn" onclick="setFilter('urgent',this)">緊急</button>
-    <button class="filter-btn" onclick="setFilter('soon',this)">即將到期</button>
-    <button class="filter-btn" onclick="setFilter('ok',this)">正常</button>
-    <button class="filter-btn" onclick="setFilter('discount',this)">打折中</button>
-  </div>
-  <div id="inventory-list"></div>
-</div>
+            <button id="btn-open-scanner" onclick="startScanner()" class="w-full bg-blue-600 text-white py-3 rounded-lg shadow font-bold mb-4 active:bg-blue-700">
+                <i class="fa-solid fa-camera mr-2"></i>開啟相機掃描條碼
+            </button>
 
-<!-- CALENDAR PAGE -->
-<div id="tab-calendar" class="page">
-  <div class="cal-header">
-    <button class="cal-nav" onclick="calNav(-1)">&#8249;</button>
-    <div class="cal-title" id="cal-title"></div>
-    <button class="cal-nav" onclick="calNav(1)">&#8250;</button>
-  </div>
-  <div class="cal-grid" id="cal-grid"></div>
-  <div class="cal-detail" id="cal-detail" style="display:none"></div>
-  <div class="upcoming-list">
-    <div class="section-title">未來 30 天即期品</div>
-    <div id="upcoming-list"></div>
-  </div>
-</div>
+            <!-- 掃描器 -->
+            <div class="scanner-wrapper" id="scanner-wrapper">
+                <div id="reader"></div>
+                <div class="laser"></div>
+                <div class="scan-corners"></div>
+                <button onclick="stopScanner()" class="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow z-20">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
 
-<!-- ALERTS PAGE -->
-<div id="tab-alerts" class="page">
-  <button class="push-btn" onclick="sendPushAlerts()">立即推送所有提醒通知</button>
-  <div id="alerts-content"></div>
-</div>
+            <!-- 比對進度條 -->
+            <div id="verify-bar" class="hidden mb-3 bg-white p-3 rounded-lg shadow text-center">
+                <div class="text-sm font-bold text-gray-600 mb-1" id="verify-text">等待掃描...</div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div id="verify-progress" class="bg-green-500 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <div class="text-xs text-gray-400 mt-1" id="verify-code-preview"></div>
+            </div>
 
-<!-- DISCOUNT PAGE -->
-<div id="tab-discount" class="page">
-  <div class="section-title">打折專區</div>
-  <div id="discount-list"></div>
-</div>
+            <!-- 表單 -->
+            <div class="bg-white p-4 rounded-lg shadow">
+                <div class="mb-3">
+                    <label class="block text-sm text-gray-600 mb-1">商品條碼</label>
+                    <input type="text" inputmode="numeric" id="input-barcode" class="w-full border p-2 rounded" placeholder="掃描或手動輸入">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm text-gray-600 mb-1">商品名稱</label>
+                    <input type="text" id="input-name" class="w-full border p-2 rounded" placeholder="例如：統一布丁">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm text-gray-600 mb-1">到期日期</label>
+                    <input type="date" id="input-date" class="w-full border p-2 rounded">
+                </div>
+                <button onclick="saveItem()" class="w-full bg-green-500 text-white py-2 rounded-lg font-bold shadow hover:bg-green-600">
+                    <i class="fa-solid fa-plus mr-2"></i>加入庫存
+                </button>
+            </div>
+        </section>
+
+        <!-- ====== 庫存 ====== -->
+        <section id="tab-inventory" class="tab-content">
+            <h2 class="text-lg font-bold mb-4 border-b pb-2"><i class="fa-solid fa-box-open mr-2"></i>庫存與打折區</h2>
+            <h3 class="font-bold text-pink-600 mb-2"><i class="fa-solid fa-tags mr-1"></i>打折專區 (30天內到期)</h3>
+            <div id="discount-list" class="space-y-3 mb-6"></div>
+            <h3 class="font-bold text-gray-600 mb-2"><i class="fa-solid fa-warehouse mr-1"></i>一般庫存 (安全期)</h3>
+            <div id="inventory-list" class="space-y-3"></div>
+        </section>
+
+        <!-- ====== 行事曆 ====== -->
+        <section id="tab-calendar" class="tab-content">
+            <h2 class="text-lg font-bold mb-4 border-b pb-2"><i class="fa-regular fa-calendar-days mr-2"></i>即期品行事曆</h2>
+            <div class="bg-white p-4 rounded-lg shadow mb-4">
+                <div class="flex justify-between items-center mb-4">
+                    <button onclick="changeMonth(-1)" class="p-2"><i class="fa-solid fa-chevron-left"></i></button>
+                    <h3 id="cal-month-year" class="font-bold text-lg"></h3>
+                    <button onclick="changeMonth(1)" class="p-2"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+                <div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-gray-500 mb-2">
+                    <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+                </div>
+                <div id="calendar-grid" class="grid grid-cols-7 gap-1 text-center text-sm"></div>
+                <div class="mt-4 flex justify-around text-xs text-gray-600">
+                    <span class="flex items-center"><div class="w-3 h-3 rounded-full bg-orange-400 mr-1"></div>30天內</span>
+                    <span class="flex items-center"><div class="w-3 h-3 rounded-full bg-red-500 mr-1"></div>7天內</span>
+                    <span class="flex items-center"><div class="w-3 h-3 border-2 border-pink-500 rounded-full mr-1"></div>打折區</span>
+                </div>
+            </div>
+            <div id="cal-detail-box" class="bg-blue-50 p-4 rounded-lg shadow hidden">
+                <h4 id="cal-detail-date" class="font-bold text-blue-800 border-b border-blue-200 pb-1 mb-2"></h4>
+                <div id="cal-detail-items" class="space-y-2"></div>
+            </div>
+        </section>
+
+        <!-- ====== 提醒 ====== -->
+        <section id="tab-reminders" class="tab-content">
+            <h2 class="text-lg font-bold mb-4 border-b pb-2"><i class="fa-solid fa-bell mr-2"></i>系統提醒</h2>
+            <div id="reminders-container" class="space-y-3"></div>
+        </section>
+
+    </main>
+
+    <nav class="fixed bottom-0 w-full bg-white border-t border-gray-200 flex justify-around text-xs text-gray-500 pb-safe z-30">
+        <button onclick="switchTab('scan', this)" class="nav-btn flex-1 py-3 text-green-600 font-bold flex flex-col items-center">
+            <i class="fa-solid fa-barcode text-xl mb-1"></i>掃描
+        </button>
+        <button onclick="switchTab('inventory', this)" class="nav-btn flex-1 py-3 flex flex-col items-center">
+            <i class="fa-solid fa-box-open text-xl mb-1"></i>庫存
+        </button>
+        <button onclick="switchTab('calendar', this)" class="nav-btn flex-1 py-3 flex flex-col items-center">
+            <i class="fa-regular fa-calendar-days text-xl mb-1"></i>行事曆
+        </button>
+        <button onclick="switchTab('reminders', this)" class="nav-btn flex-1 py-3 flex flex-col items-center relative">
+            <i class="fa-solid fa-bell text-xl mb-1"></i>提醒
+            <span id="reminder-badge" class="absolute top-1 right-3 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full hidden items-center justify-center">0</span>
+        </button>
+    </nav>
 
 <script>
-// ===================== DATA =====================
-const PRODUCTS = {
-  "4901085615706":["麥香紅茶",30,"飲料"],"4902102141543":["可口可樂330ml",25,"飲料"],
-  "4902102141550":["百事可樂330ml",25,"飲料"],"4710253961168":["統一麥香綠茶",20,"飲料"],
-  "4710088001506":["悅氏礦泉水",15,"飲料"],"4710038100012":["光泉鮮乳",55,"乳品"],
-  "4710070010017":["福樂鮮乳",58,"乳品"],"4902430399920":["明治香蕉牛奶",35,"乳品"],
-  "4710253861016":["統一陽光優酪乳",45,"乳品"],"4710253861023":["統一莓果優酪乳",45,"乳品"],
-  "4901001208075":["卡樂比洋芋片",49,"零食"],"4901085000003":["Pocky巧克力棒",35,"零食"],
-  "4902555143033":["Kitkat巧克力",39,"零食"],"4710088611145":["旺旺仙貝",29,"零食"],
-  "4710253210012":["科學麵",15,"零食"],"4718009010011":["7-11 御飯糰鮭魚",39,"食品"],
-  "4718009010028":["7-11 御飯糰鮪魚",39,"食品"],"4718009010035":["7-11 御飯糰昆布",35,"食品"],
-  "4718009010042":["7-11 雞腿便當",85,"食品"],"4718009010059":["7-11 排骨便當",80,"食品"],
-  "4718009020010":["7-11 熱狗",25,"食品"],"4718009020027":["7-11 關東煮蘿蔔",15,"食品"],
-  "4710088100012":["7-11 鮮食三明治",45,"麵包"],"4710088100029":["7-11 總匯三明治",55,"麵包"],
-  "4710088200011":["7-11 牛角麵包",35,"麵包"],"4710088200028":["7-11 菠蘿麵包",29,"麵包"],
-  "4710088300010":["7-11 冷凍水餃",99,"冷凍品"],"4710088300027":["7-11 冷凍湯圓",79,"冷凍品"],
-  "4901480089084":["花王洗碗精",79,"日用品"],"4901301380494":["雀巢即溶咖啡",149,"飲料"],
-  "4710088500012":["7-11 黑咖啡",39,"飲料"],"4710088500029":["7-11 拿鐵咖啡",55,"飲料"],
-  "4710038200013":["光泉果汁牛乳",25,"乳品"],"4902430383836":["格力高百奇",45,"零食"],
-  "4901085601020":["統一肉燥麵",25,"食品"],"4710088400011":["義美小泡芙",39,"零食"],
-  "4710088400028":["義美冰淇淋",45,"乳品"],"4718009030019":["7-11 茶葉蛋",10,"食品"],
-  "4710253161019":["統一蜜豆奶",25,"飲料"],"4902102141567":["雪碧330ml",25,"飲料"],
-  "0049000028904":["芬達橘子330ml",25,"飲料"]
+/* ===================== 資料 ===================== */
+const productDB = {
+    "4710088410043": "統一布丁(大)",
+    "4710088631165": "麥香紅茶 300ml",
+    "4710088430034": "茶裏王 日式無糖綠茶",
+    "4710122060135": "瑞穗鮮乳 930ml",
+    "4710088431802": "純喫茶 綠茶 650ml",
+    "4710122060616": "統一無糖高纖豆漿"
 };
 
-let inventory = JSON.parse(localStorage.getItem('inv711')||'[]');
-let inventoryFilter = 'all';
-let calYear, calMonth, selectedCalDay;
-let scanActive = false;
-let currentStream = null;
-let scanEngine = null; // 'barcodedetector' | 'quagga' | 'jsqr' | null
-let animFrame = null;
-let facingMode = 'environment';
-let quaggaRunning = false;
+let inventory = JSON.parse(localStorage.getItem('seven_inventory')) || [];
+let html5QrCode = null;
+let scanBuffer = {};      // { code: count } 累計每個候選條碼的出現次數
+const REQUIRED_HITS = 4;  // 同一個通過 Checksum 的條碼，必須累積 4 次才輸出
 
-// ===================== ENGINE DETECT =====================
+window.onload = () => {
+    document.getElementById('input-date').valueAsDate = new Date();
+    renderInventory();
+    renderReminders();
+    renderCalendar();
+    detectEngine();
+};
+
+/* ===================== 引擎偵測 ===================== */
 function detectEngine() {
-  const el = document.getElementById('lib-status');
-  if (typeof BarcodeDetector !== 'undefined') {
-    BarcodeDetector.getSupportedFormats().then(fmts => {
-      const need = ['ean_13','qr_code'];
-      const has = need.filter(f => fmts.includes(f));
-      if (has.length > 0) {
-        scanEngine = 'barcodedetector';
-        el.style.background = '#d1fae5'; el.style.color = '#065f46';
-        el.textContent = 'BarcodeDetector 就緒（最佳效能）';
-      } else { tryQuagga(el); }
-    }).catch(()=>tryQuagga(el));
-  } else if (typeof Quagga !== 'undefined') {
-    tryQuagga(el);
-  } else if (typeof jsQR !== 'undefined') {
-    scanEngine = 'jsqr';
-    el.style.background = '#fef9c3'; el.style.color = '#b45309';
-    el.textContent = 'jsQR 就緒（僅 QR Code）';
-  } else {
-    scanEngine = 'manual';
-    el.style.background = '#fee2e2'; el.style.color = '#b91c1c';
-    el.textContent = '無法載入掃描引擎 — 請使用手動輸入';
-  }
+    const statusEl = document.getElementById('engine-status');
+    if (typeof Html5Qrcode !== 'undefined') {
+        statusEl.innerText = 'html5-qrcode 就緒';
+    } else {
+        statusEl.innerText = '函式庫載入中...';
+        // 若未載入完成，等待 2 秒再檢查
+        setTimeout(() => {
+            statusEl.innerText = typeof Html5Qrcode !== 'undefined' ? 'html5-qrcode 就緒' : '請重新整理頁面';
+        }, 2000);
+    }
 }
 
-function tryQuagga(el) {
-  if (typeof Quagga !== 'undefined') {
-    scanEngine = 'quagga';
-    el.style.background = '#d1fae5'; el.style.color = '#065f46';
-    el.textContent = 'Quagga 就緒（支援 EAN-13 條碼）';
-  } else {
-    scanEngine = 'jsqr';
-    el.style.background = '#fef9c3'; el.style.color = '#b45309';
-    el.textContent = 'jsQR 就緒（僅 QR Code）';
-  }
+/* ===================== EAN Checksum 驗證 ===================== */
+function isValidEAN(code) {
+    if (!code || !/^\d+$/.test(code)) return false;
+    const len = code.length;
+    if (len !== 13 && len !== 8) return false;
+
+    let sum = 0;
+    if (len === 13) {
+        for (let i = 0; i < 12; i++) sum += parseInt(code[i]) * (i % 2 === 0 ? 1 : 3);
+        return (10 - (sum % 10)) % 10 === parseInt(code[12]);
+    }
+    if (len === 8) {
+        for (let i = 0; i < 7; i++) sum += parseInt(code[i]) * (i % 2 === 0 ? 3 : 1);
+        return (10 - (sum % 10)) % 10 === parseInt(code[7]);
+    }
+    return false;
 }
 
-// ===================== CAMERA =====================
-async function startCamera() {
-  const video = document.getElementById('scanner-video');
-  const constraints = [
-    { video:{ facingMode:{ exact: facingMode }, width:{ideal:1280}, height:{ideal:720} } },
-    { video:{ facingMode: facingMode, width:{ideal:1280}, height:{ideal:720} } },
-    { video:{ facingMode: 'environment' } },
-    { video: true }
-  ];
-  for (const c of constraints) {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia(c);
-      currentStream = stream;
-      video.srcObject = stream;
-      await new Promise((res,rej)=>{
-        video.onloadedmetadata = res;
-        setTimeout(rej, 5000);
-      });
-      await video.play();
-      return true;
-    } catch(e) { /* try next */ }
-  }
-  return false;
-}
-
-function stopCamera() {
-  if (currentStream) {
-    currentStream.getTracks().forEach(t=>t.stop());
-    currentStream = null;
-  }
-  const video = document.getElementById('scanner-video');
-  video.srcObject = null;
-  if (quaggaRunning) { try { Quagga.stop(); } catch(e){} quaggaRunning = false; }
-  if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
-}
-
-// ===================== SCAN TOGGLE =====================
-async function toggleScan() {
-  if (scanActive) {
-    stopScan();
-  } else {
-    await startScan();
-  }
-}
-
-async function startScan() {
-  setStatus('開啟相機中...', '');
-  const ok = await startCamera();
-  if (!ok) { setStatus('相機開啟失敗，請允許相機權限', 'error'); return; }
-  scanActive = true;
-  document.getElementById('scan-btn').textContent = '停止掃描';
-  document.getElementById('scan-btn').classList.add('stop');
-  document.getElementById('scan-overlay').innerHTML = '<div class="scan-frame"><div class="scan-line"></div></div>';
-
-  if (scanEngine === 'barcodedetector') {
-    setStatus('BarcodeDetector 掃描中...', '');
-    startBarcodeDetector();
-  } else if (scanEngine === 'quagga') {
-    setStatus('Quagga 掃描中...', '');
-    startQuaggaScan();
-  } else {
-    setStatus('jsQR 掃描中（僅 QR Code）...', '');
-    startJsQRLoop();
-  }
-}
-
-function stopScan() {
-  stopCamera();
-  scanActive = false;
-  document.getElementById('scan-btn').textContent = '開始掃描';
-  document.getElementById('scan-btn').classList.remove('stop');
-  document.getElementById('scan-overlay').innerHTML = '<div style="text-align:center;color:rgba(255,255,255,.7);font-size:14px">按下開始掃描</div>';
-  setStatus('掃描已停止', '');
-}
-
-// ===================== BARCODE DETECTOR =====================
-function startBarcodeDetector() {
-  const formats = ['ean_13','ean_8','upc_a','upc_e','code_128','code_39','qr_code','itf'];
-  const detector = new BarcodeDetector({ formats: formats.filter(f => true) });
-  const video = document.getElementById('scanner-video');
-
-  async function detect() {
-    if (!scanActive) return;
-    try {
-      const results = await detector.detect(video);
-      if (results && results.length > 0) {
-        const code = results[0].rawValue;
-        onBarcodeFound(code, `BarcodeDetector:${results[0].format}`);
+/* ===================== 掃描器 ===================== */
+async function startScanner() {
+    if (typeof Html5Qrcode === 'undefined') {
+        alert('掃描函式庫尚未載入完成，請稍後再試或重新整理頁面。');
         return;
-      }
-    } catch(e) {}
-    animFrame = requestAnimationFrame(detect);
-  }
-  animFrame = requestAnimationFrame(detect);
+    }
+
+    document.getElementById('scanner-wrapper').style.display = 'block';
+    document.getElementById('verify-bar').classList.remove('hidden');
+    document.getElementById('btn-open-scanner').style.display = 'none';
+    scanBuffer = {};
+    updateVerifyUI(null, 0);
+
+    try {
+        html5QrCode = new Html5Qrcode("reader");
+
+        // 取得所有可用攝影機，優先選後鏡頭
+        const cameras = await Html5Qrcode.getCameras();
+        if (!cameras || cameras.length === 0) {
+            alert('找不到相機裝置，請確認相機權限已開啟。');
+            stopScanner();
+            return;
+        }
+
+        // 找後鏡頭 (environment)
+        let cameraId = cameras[0].id;
+        for (const cam of cameras) {
+            const label = (cam.label || '').toLowerCase();
+            if (label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('後')) {
+                cameraId = cam.id;
+                break;
+            }
+        }
+
+        const config = {
+            fps: 15,
+            qrbox: { width: 280, height: 160 },
+            aspectRatio: 1.5,
+            formatsToSupport: [
+                Html5QrcodeSupportedFormats.EAN_13,
+                Html5QrcodeSupportedFormats.EAN_8,
+                Html5QrcodeSupportedFormats.UPC_A,
+                Html5QrcodeSupportedFormats.UPC_E
+            ],
+            // 提升辨識率的進階設定
+            experimentalFeatures: {
+                useBarCodeDetectorIfSupported: true
+            }
+        };
+
+        await html5QrCode.start(
+            cameraId,
+            config,
+            onScanSuccess,
+            onScanFailure
+        );
+
+        document.getElementById('engine-status').innerText = '相機掃描中';
+
+    } catch (err) {
+        console.error('掃描器啟動失敗:', err);
+        alert('相機啟動失敗: ' + (err.message || err) + '\n請確認瀏覽器已允許相機存取權限。');
+        stopScanner();
+    }
 }
 
-// ===================== QUAGGA =====================
-function startQuaggaScan() {
-  const video = document.getElementById('scanner-video');
-  const container = document.querySelector('.scan-area');
+/* 每次掃描成功的 callback（html5-qrcode 自動呼叫） */
+function onScanSuccess(decodedText, decodedResult) {
+    const code = (decodedText || '').trim();
 
-  Quagga.init({
-    inputStream: {
-      type: 'LiveStream',
-      target: video,
-      constraints: { facingMode: facingMode },
-      area: { top:'10%', right:'5%', bottom:'10%', left:'5%' }
-    },
-    decoder: {
-      readers: [
-        'ean_reader','ean_8_reader','upc_reader','upc_e_reader',
-        'code_128_reader','code_39_reader','i2of5_reader'
-      ],
-      multiple: false
-    },
-    locate: true,
-    numOfWorkers: 2,
-    frequency: 15
-  }, err => {
-    if (err) {
-      setStatus('Quagga 初始化失敗，切換 jsQR...', 'warning');
-      scanEngine = 'jsqr';
-      startJsQRLoop();
-      return;
-    }
-    Quagga.start();
-    quaggaRunning = true;
-  });
-
-  Quagga.offDetected();
-  Quagga.onDetected(result => {
-    if (!scanActive) return;
-    const code = result.codeResult && result.codeResult.code;
-    const fmt = result.codeResult && result.codeResult.format;
-    if (code && code.length >= 8) {
-      onBarcodeFound(code, `Quagga:${fmt}`);
-    }
-  });
-}
-
-// ===================== JSQR LOOP =====================
-function startJsQRLoop() {
-  const video = document.getElementById('scanner-video');
-  const canvas = document.getElementById('qr-canvas');
-  const ctx = canvas.getContext('2d');
-
-  function loop() {
-    if (!scanActive) return;
-    if (video.readyState >= 2 && video.videoWidth > 0) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0);
-      const img = ctx.getImageData(0,0,canvas.width,canvas.height);
-      const code = jsQR(img.data, img.width, img.height, { inversionAttempts:'dontInvert' });
-      if (code && code.data) {
-        onBarcodeFound(code.data, 'jsQR:QR_CODE');
+    // 第一重：EAN Checksum 驗證
+    if (!isValidEAN(code)) {
+        updateVerifyUI('無效條碼 (校驗失敗，忽略)', 0);
         return;
-      }
     }
-    animFrame = requestAnimationFrame(loop);
-  }
-  animFrame = requestAnimationFrame(loop);
+
+    // 第二重：累積計數（同一個正確條碼必須出現 REQUIRED_HITS 次）
+    if (!scanBuffer[code]) scanBuffer[code] = 0;
+    scanBuffer[code]++;
+
+    const hits = scanBuffer[code];
+    const pct = Math.min((hits / REQUIRED_HITS) * 100, 100);
+    updateVerifyUI(`雙重比對中：${code}  (${hits}/${REQUIRED_HITS})`, pct);
+
+    if (hits >= REQUIRED_HITS) {
+        // 通過！輸出結果
+        handleSuccess(code);
+    }
 }
 
-// ===================== BARCODE FOUND =====================
-function onBarcodeFound(code, engine) {
-  stopScan();
-  setStatus(`掃描成功！條碼：${code}（${engine}）`, '');
-  fillForm(code);
-
-  // vibrate
-  if (navigator.vibrate) navigator.vibrate([80,40,80]);
+/* 掃描失敗（每幀未找到條碼）：靜默即可，不需要提示 */
+function onScanFailure(error) {
+    // 刻意不做任何事，避免洗版錯誤訊息
 }
 
-function fillForm(code) {
-  document.getElementById('f-barcode').value = code;
-  const info = PRODUCTS[code];
-  if (info) {
-    document.getElementById('f-name').value = info[0];
-    document.getElementById('f-price').value = info[1];
-    document.getElementById('f-cat').value = info[2];
-    setStatus(`找到商品：${info[0]}`, '');
-  } else {
-    document.getElementById('f-name').value = '';
-    document.getElementById('f-price').value = '';
-    setStatus(`條碼 ${code} — 請手動輸入商品名稱`, 'warning');
-  }
-  // set today+7 as default expiry
-  const d = new Date(); d.setDate(d.getDate()+7);
-  document.getElementById('f-exp').value = d.toISOString().slice(0,10);
+function updateVerifyUI(msg, pct) {
+    const textEl = document.getElementById('verify-text');
+    const barEl = document.getElementById('verify-progress');
+    const previewEl = document.getElementById('verify-code-preview');
+
+    if (msg) textEl.innerText = msg;
+    barEl.style.width = pct + '%';
+    if (pct === 0) previewEl.innerText = '';
+    else previewEl.innerText = '驗證進度 ' + Math.round(pct) + '%';
+
+    // 顏色隨進度變化
+    barEl.className = 'h-3 rounded-full transition-all duration-300 ' +
+        (pct < 50 ? 'bg-orange-400' : pct < 100 ? 'bg-yellow-400' : 'bg-green-500');
 }
 
-// ===================== SWITCH CAMERA =====================
-async function switchCamera() {
-  facingMode = facingMode === 'environment' ? 'user' : 'environment';
-  if (scanActive) {
-    stopCamera();
-    quaggaRunning = false;
-    const ok = await startCamera();
-    if (!ok) { setStatus('切換鏡頭失敗','error'); return; }
-    if (scanEngine === 'barcodedetector') startBarcodeDetector();
-    else if (scanEngine === 'quagga') startQuaggaScan();
-    else startJsQRLoop();
-  }
+function handleSuccess(code) {
+    if (navigator.vibrate) navigator.vibrate([100, 50, 200]);
+
+    document.getElementById('input-barcode').value = code;
+    document.getElementById('input-name').value = productDB[code] || '';
+
+    updateVerifyUI('掃描成功！', 100);
+    setTimeout(stopScanner, 600);
 }
 
-// ===================== MANUAL ENTRY =====================
-function manualEntry() {
-  const code = prompt('請輸入條碼號碼：');
-  if (code && code.trim()) {
-    fillForm(code.trim());
-  }
+function stopScanner() {
+    if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+            html5QrCode.clear();
+            html5QrCode = null;
+        }).catch(() => { html5QrCode = null; });
+    }
+    document.getElementById('scanner-wrapper').style.display = 'none';
+    document.getElementById('verify-bar').classList.add('hidden');
+    document.getElementById('btn-open-scanner').style.display = 'block';
+    document.getElementById('engine-status').innerText = 'html5-qrcode 就緒';
+    scanBuffer = {};
 }
 
-// ===================== STATUS =====================
-function setStatus(msg, type) {
-  const el = document.getElementById('status-bar');
-  el.textContent = msg;
-  el.className = type ? `error-${type}` : '';
-  el.style.background = type === 'error' ? '#fee2e2' : type === 'warning' ? '#fef9c3' : '#d1fae5';
-  el.style.color = type === 'error' ? '#b91c1c' : type === 'warning' ? '#b45309' : '#065f46';
+/* ===================== 頁籤切換 ===================== */
+function switchTab(tabId, btnEl) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + tabId).classList.add('active');
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('text-green-600', 'font-bold'));
+    btnEl.classList.add('text-green-600', 'font-bold');
+    if (tabId === 'calendar') renderCalendar();
+    if (tabId === 'inventory') renderInventory();
+    if (tabId === 'reminders') renderReminders();
 }
 
-// ===================== SAVE =====================
+/* ===================== 資料操作 ===================== */
 function saveItem() {
-  const name = document.getElementById('f-name').value.trim();
-  const exp = document.getElementById('f-exp').value;
-  if (!name) { alert('請填寫商品名稱'); return; }
-  if (!exp) { alert('請選擇到期日'); return; }
+    const barcode = document.getElementById('input-barcode').value.trim();
+    const name = document.getElementById('input-name').value.trim();
+    const dateStr = document.getElementById('input-date').value;
+    if (!barcode || !name || !dateStr) { alert('請填寫完整資訊'); return; }
 
-  const item = {
-    id: Date.now(),
-    name,
-    barcode: document.getElementById('f-barcode').value,
-    cat: document.getElementById('f-cat').value,
-    price: parseFloat(document.getElementById('f-price').value)||0,
-    qty: parseInt(document.getElementById('f-qty').value)||1,
-    exp,
-    discount: false,
-    addedAt: new Date().toISOString()
-  };
-
-  // auto-discount if <=30 days
-  const days = daysUntil(exp);
-  if (days <= 30 && days >= 0) item.discount = true;
-
-  inventory.push(item);
-  saveData();
-  alert(`「${name}」已儲存！`);
-  ['f-name','f-barcode','f-price','f-exp'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('f-qty').value = '1';
-  updateBadge();
+    inventory.push({ id: Date.now().toString(), barcode, name, expiryDate: dateStr });
+    saveData();
+    document.getElementById('input-barcode').value = '';
+    document.getElementById('input-name').value = '';
+    alert('成功加入庫存！');
+    renderInventory(); renderReminders(); renderCalendar();
 }
 
-// ===================== UTILS =====================
-function daysUntil(dateStr) {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const d = new Date(dateStr); d.setHours(0,0,0,0);
-  return Math.round((d-today)/(1000*60*60*24));
-}
-function statusOf(item) {
-  if (item.discount) return 'discount';
-  const d = daysUntil(item.exp);
-  if (d < 0) return 'expired';
-  if (d <= 3) return 'urgent';
-  if (d <= 7) return 'soon';
-  return 'ok';
-}
-function badgeHtml(item) {
-  const d = daysUntil(item.exp);
-  if (item.discount) return `<span class="item-badge badge-yellow">打折中</span>`;
-  if (d < 0) return `<span class="item-badge badge-red">已過期</span>`;
-  if (d === 0) return `<span class="item-badge badge-red">今日到期</span>`;
-  if (d <= 3) return `<span class="item-badge badge-red">剩 ${d} 天</span>`;
-  if (d <= 7) return `<span class="item-badge badge-orange">剩 ${d} 天</span>`;
-  return `<span class="item-badge badge-green">剩 ${d} 天</span>`;
-}
 function saveData() {
-  localStorage.setItem('inv711', JSON.stringify(inventory));
-  renderInventory(); renderAlerts(); renderDiscount(); renderCalendar(); updateBadge();
-}
-function updateBadge() {
-  document.getElementById('total-badge').textContent = inventory.length + ' 件';
+    inventory.sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
+    localStorage.setItem('seven_inventory', JSON.stringify(inventory));
 }
 
-// ===================== INVENTORY =====================
-function setFilter(f, btn) {
-  inventoryFilter = f;
-  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  renderInventory();
-}
-function renderInventory() {
-  const el = document.getElementById('inventory-list');
-  let items = [...inventory];
-  if (inventoryFilter !== 'all') items = items.filter(i=>statusOf(i)===inventoryFilter);
-  items.sort((a,b)=>a.exp.localeCompare(b.exp));
-  if (!items.length) { el.innerHTML='<div class="empty-state">目前沒有商品</div>'; return; }
-  el.innerHTML = items.map(item=>{
-    const st = statusOf(item);
-    const d = daysUntil(item.exp);
-    return `<div class="item-card ${st}">
-      <div class="item-top">
-        <div class="item-name">${item.name}</div>
-        ${badgeHtml(item)}
-      </div>
-      <div class="item-meta">${item.cat} | 售價 $${item.price} | 數量 ${item.qty} | 到期：${item.exp}</div>
-      ${item.barcode?`<div class="item-meta">條碼：${item.barcode}</div>`:''}
-      <div class="item-actions">
-        ${!item.discount?`<button class="btn-small btn-disc" onclick="toggleDiscount(${item.id})">移入打折</button>`:`<button class="btn-small btn-restore" onclick="toggleDiscount(${item.id})">取消打折</button>`}
-        <button class="btn-small btn-del" onclick="deleteItem(${item.id})">刪除</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-function toggleDiscount(id) {
-  const i = inventory.find(x=>x.id===id);
-  if (i) { i.discount = !i.discount; saveData(); }
-}
 function deleteItem(id) {
-  if (!confirm('確定刪除？')) return;
-  inventory = inventory.filter(x=>x.id!==id);
-  saveData();
+    if (!confirm('確定要刪除此商品嗎？')) return;
+    inventory = inventory.filter(item => item.id !== id);
+    saveData(); renderInventory(); renderReminders(); renderCalendar();
 }
 
-// ===================== CALENDAR =====================
-function initCal() {
-  const n = new Date();
-  calYear = n.getFullYear(); calMonth = n.getMonth();
-  renderCalendar();
+function getDaysDiff(dateStr) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return Math.ceil((new Date(dateStr) - today) / 86400000);
 }
-function calNav(dir) {
-  calMonth += dir;
-  if (calMonth > 11) { calMonth=0; calYear++; }
-  if (calMonth < 0) { calMonth=11; calYear--; }
-  renderCalendar();
+
+/* ===================== 庫存渲染 ===================== */
+function renderInventory() {
+    const dEl = document.getElementById('discount-list');
+    const iEl = document.getElementById('inventory-list');
+    dEl.innerHTML = ''; iEl.innerHTML = '';
+
+    if (!inventory.length) { iEl.innerHTML = '<p class="text-gray-400 text-sm">目前無庫存</p>'; return; }
+
+    inventory.forEach(item => {
+        const days = getDaysDiff(item.expiryDate);
+        const isDiscount = days <= 30;
+        const tag = days < 0
+            ? '<span class="text-xs bg-gray-500 text-white px-2 py-1 rounded">已過期</span>'
+            : days === 0
+                ? '<span class="text-xs bg-red-600 text-white px-2 py-1 rounded animate-pulse">今日到期</span>'
+                : days <= 7
+                    ? `<span class="text-xs bg-red-500 text-white px-2 py-1 rounded">剩 ${days} 天</span>`
+                    : days <= 30
+                        ? `<span class="text-xs bg-orange-400 text-white px-2 py-1 rounded">剩 ${days} 天</span>`
+                        : `<span class="text-xs bg-green-500 text-white px-2 py-1 rounded">剩 ${days} 天</span>`;
+
+        const html = `
+            <div class="bg-white p-3 rounded-lg shadow-sm border-l-4 ${isDiscount ? 'border-pink-500' : 'border-green-500'} flex justify-between items-center">
+                <div>
+                    <div class="font-bold text-gray-800">${item.name}</div>
+                    <div class="text-xs text-gray-500">條碼: ${item.barcode} | 到期: ${item.expiryDate}</div>
+                </div>
+                <div class="flex items-center gap-2">${tag}
+                    <button onclick="deleteItem('${item.id}')" class="text-gray-400 hover:text-red-500 ml-2"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </div>`;
+        if (isDiscount) dEl.insertAdjacentHTML('beforeend', html);
+        else iEl.insertAdjacentHTML('beforeend', html);
+    });
+    if (!dEl.innerHTML) dEl.innerHTML = '<p class="text-gray-400 text-sm">目前無打折商品</p>';
 }
+
+/* ===================== 提醒渲染 ===================== */
+function renderReminders() {
+    const container = document.getElementById('reminders-container');
+    const badge = document.getElementById('reminder-badge');
+    container.innerHTML = '';
+    let urgent = 0;
+
+    inventory.forEach(item => {
+        const days = getDaysDiff(item.expiryDate);
+        if (days > 30) return;
+        let icon = 'fa-bell', color = 'text-orange-500', msg = `已置入打折專區 (距到期 ${days} 天)`;
+        if (days < 0) { icon = 'fa-circle-xmark'; color = 'text-gray-500'; msg = '已過期，請儘速報廢處理。'; }
+        else if (days === 0) { icon = 'fa-triangle-exclamation'; color = 'text-red-600'; msg = '【緊急】商品今日到期！'; urgent++; }
+        else if (days <= 7) { icon = 'fa-clock'; color = 'text-red-500'; msg = `即將到期，剩餘 ${days} 天！`; urgent++; }
+
+        container.insertAdjacentHTML('beforeend', `
+            <div class="bg-white p-3 rounded-lg shadow-sm flex items-start gap-3">
+                <i class="fa-solid ${icon} ${color} mt-1"></i>
+                <div>
+                    <div class="font-bold text-gray-800">${item.name}</div>
+                    <div class="text-xs ${color}">${msg}</div>
+                    <div class="text-xs text-gray-400">到期日：${item.expiryDate}</div>
+                </div>
+            </div>`);
+    });
+    if (!container.innerHTML) container.innerHTML = '<p class="text-gray-400 text-sm text-center mt-6">目前沒有提醒事項</p>';
+    badge.style.display = urgent > 0 ? 'flex' : 'none';
+    badge.innerText = urgent;
+}
+
+/* ===================== 行事曆 ===================== */
+let currentDate = new Date();
+function changeMonth(d) { currentDate.setMonth(currentDate.getMonth() + d); renderCalendar(); }
+
 function renderCalendar() {
-  const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-  document.getElementById('cal-title').textContent = `${calYear} 年 ${months[calMonth]}`;
-  const grid = document.getElementById('cal-grid');
-  const dows = ['日','一','二','三','四','五','六'];
-  const today = new Date(); today.setHours(0,0,0,0);
+    const grid = document.getElementById('calendar-grid');
+    const label = document.getElementById('cal-month-year');
+    grid.innerHTML = '';
+    document.getElementById('cal-detail-box').classList.add('hidden');
 
-  // map items by date
-  const byDate = {};
-  inventory.forEach(item=>{
-    if (!byDate[item.exp]) byDate[item.exp]={urgent:0,soon:0,discount:0,items:[]};
-    const d = daysUntil(item.exp);
-    if (d<=3) byDate[item.exp].urgent++;
-    else if (d<=7) byDate[item.exp].soon++;
-    if (item.discount) byDate[item.exp].discount++;
-    byDate[item.exp].items.push(item);
-  });
+    const y = currentDate.getFullYear(), m = currentDate.getMonth();
+    label.innerText = `${y}年 ${m + 1}月`;
 
-  let html = dows.map(d=>`<div class="cal-dow">${d}</div>`).join('');
-  const first = new Date(calYear,calMonth,1).getDay();
-  const days = new Date(calYear,calMonth+1,0).getDate();
-  for(let i=0;i<first;i++) html+=`<div class="cal-day" style="opacity:0"></div>`;
-  for(let d=1;d<=days;d++){
-    const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const info = byDate[ds];
-    const isToday = ds === today.toISOString().slice(0,10);
-    let cls = 'cal-day';
-    if (isToday) cls += ' today';
-    if (info) {
-      if (info.urgent>0) cls+=' has-urgent';
-      else if (info.soon>0) cls+=' has-soon';
-      if (info.discount>0) cls+=' has-discount';
-    }
-    if (selectedCalDay===ds) cls+=' selected';
-    html+=`<div class="${cls}" onclick="selectCalDay('${ds}')">${d}${info?'<div class="dot"></div>':''}</div>`;
-  }
-  grid.innerHTML = html;
+    const firstDay = new Date(y, m, 1).getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const dateMap = {};
 
-  // upcoming 30 days
-  const up = inventory.filter(i=>{ const d=daysUntil(i.exp); return d>=0&&d<=30; })
-    .sort((a,b)=>a.exp.localeCompare(b.exp));
-  const upEl = document.getElementById('upcoming-list');
-  upEl.innerHTML = up.length ? up.map(i=>`
-    <div class="upcoming-item">
-      <div>
-        <div style="font-size:13px;font-weight:700">${i.name}</div>
-        <div style="font-size:11px;color:var(--sub)">${i.exp} | $${i.price}</div>
-      </div>
-      ${badgeHtml(i)}
-    </div>`).join('') : '<div class="empty-state">近 30 天無即期商品</div>';
-}
-function selectCalDay(ds) {
-  selectedCalDay = ds;
-  renderCalendar();
-  const items = inventory.filter(i=>i.exp===ds);
-  const det = document.getElementById('cal-detail');
-  if (!items.length) { det.style.display='none'; return; }
-  det.style.display='block';
-  det.innerHTML = `<h3>${ds} 到期商品（${items.length} 件）</h3>`+items.map(i=>`
-    <div class="upcoming-item">
-      <div><div style="font-size:13px;font-weight:700">${i.name}</div>
-      <div style="font-size:11px;color:var(--sub)">${i.cat} | 數量 ${i.qty}</div></div>
-      ${badgeHtml(i)}
-    </div>`).join('');
-}
-
-// ===================== ALERTS =====================
-function renderAlerts() {
-  const el = document.getElementById('alerts-content');
-  const expired = inventory.filter(i=>daysUntil(i.exp)<0);
-  const today   = inventory.filter(i=>daysUntil(i.exp)===0);
-  const week    = inventory.filter(i=>{ const d=daysUntil(i.exp); return d>0&&d<=7; });
-  const month   = inventory.filter(i=>{ const d=daysUntil(i.exp); return d>7&&d<=30; });
-
-  function section(title,items,cls,countCls){
-    if(!items.length) return '';
-    return `<div class="alert-section">
-      <h3>${title} <span class="alert-count ${countCls}">${items.length}</span></h3>
-      ${items.sort((a,b)=>a.exp.localeCompare(b.exp)).map(i=>`
-        <div class="alert-item">
-          <div style="font-weight:700;font-size:13px">${i.name}</div>
-          <div style="font-size:12px;color:var(--sub)">${i.exp} | $${i.price} x${i.qty}</div>
-        </div>`).join('')}
-    </div>`;
-  }
-
-  el.innerHTML =
-    section('已過期', expired, 'urgent', '') +
-    section('今日到期', today, 'urgent', '') +
-    section('7 天內到期', week, 'soon', 'orange') +
-    section('30 天內到期（建議打折）', month, 'ok', 'yellow') ||
-    '<div class="empty-state">目前沒有即期提醒</div>';
-}
-
-function sendPushAlerts() {
-  if (!('Notification' in window)) { alert('此瀏覽器不支援通知'); return; }
-  Notification.requestPermission().then(perm=>{
-    if (perm !== 'granted') { alert('未取得通知權限'); return; }
-    const urgent = inventory.filter(i=>{ const d=daysUntil(i.exp); return d>=0&&d<=7; });
-    if (!urgent.length) { new Notification('7-11 即期品', {body:'目前無緊急即期商品'}); return; }
-    urgent.forEach(i=>{
-      new Notification(`即期提醒：${i.name}`, {
-        body:`到期日：${i.exp}（剩 ${daysUntil(i.exp)} 天）`,
-        icon: ''
-      });
+    inventory.forEach(item => {
+        const days = getDaysDiff(item.expiryDate);
+        if (days > 30) return;
+        if (!dateMap[item.expiryDate]) dateMap[item.expiryDate] = { minDays: 999 };
+        if (days < dateMap[item.expiryDate].minDays) dateMap[item.expiryDate].minDays = days;
     });
-  });
-}
 
-// ===================== DISCOUNT =====================
-function renderDiscount() {
-  const el = document.getElementById('discount-list');
-  const items = inventory.filter(i=>i.discount).sort((a,b)=>a.exp.localeCompare(b.exp));
-  if (!items.length) { el.innerHTML='<div class="empty-state">打折專區暫無商品</div>'; return; }
-  el.innerHTML = items.map(item=>{
-    const disc = item.price * 0.7;
-    return `<div class="disc-card">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-size:14px;font-weight:700">${item.name}</div>
-          <div style="font-size:12px;color:var(--sub)">${item.cat} | 到期：${item.exp}</div>
-        </div>
-        <span class="disc-badge">打折中</span>
-      </div>
-      <div style="margin-top:6px;display:flex;align-items:baseline;gap:8px">
-        <div class="disc-price">$${disc.toFixed(0)}</div>
-        <div class="disc-original">原價 $${item.price}</div>
-        <div style="font-size:11px;color:var(--orange);font-weight:700">7折優惠</div>
-      </div>
-      <div class="item-actions" style="margin-top:8px">
-        <button class="btn-small btn-restore" onclick="toggleDiscount(${item.id})">取消打折</button>
-        <button class="btn-small btn-del" onclick="deleteItem(${item.id})">刪除</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// ===================== TABS =====================
-function switchTab(t) {
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
-  document.getElementById('tab-'+t).classList.add('active');
-  const tabs = ['scan','inventory','calendar','alerts','discount'];
-  document.querySelectorAll('.tab')[tabs.indexOf(t)].classList.add('active');
-  if (t==='calendar') renderCalendar();
-}
-
-// ===================== INIT =====================
-window.addEventListener('load', ()=>{
-  detectEngine();
-  initCal();
-  renderInventory();
-  renderAlerts();
-  renderDiscount();
-  updateBadge();
-
-  // auto check on load
-  setTimeout(()=>{
-    const urgent = inventory.filter(i=>{ const d=daysUntil(i.exp); return d>=0&&d<=3; });
-    if (urgent.length) {
-      setStatus(`警告：有 ${urgent.length} 件商品即將到期！`, 'error');
+    for (let i = 0; i < firstDay; i++) grid.insertAdjacentHTML('beforeend', '<div class="cal-day"></div>');
+    for (let i = 1; i <= daysInMonth; i++) {
+        const ds = `${y}-${String(m + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+        let cls = 'cal-day bg-white hover:bg-gray-100 shadow-sm';
+        if (dateMap[ds]) {
+            cls += ' is-discount';
+            cls += dateMap[ds].minDays <= 7 ? ' has-7days text-white' : ' has-30days text-white';
+        }
+        grid.insertAdjacentHTML('beforeend', `<div class="${cls}" onclick="showDateDetails('${ds}')">${i}</div>`);
     }
-    // auto promote 30-day items to discount
-    let changed = false;
-    inventory.forEach(i=>{
-      const d = daysUntil(i.exp);
-      if (d>=0 && d<=30 && !i.discount) { i.discount=true; changed=true; }
-    });
-    if (changed) saveData();
-  }, 800);
-});
+}
+
+function showDateDetails(dateStr) {
+    const box = document.getElementById('cal-detail-box');
+    const items = inventory.filter(i => i.expiryDate === dateStr);
+    if (!items.length) { box.classList.add('hidden'); return; }
+    document.getElementById('cal-detail-date').innerText = `${dateStr} 到期商品 (${items.length} 件)`;
+    document.getElementById('cal-detail-items').innerHTML = items.map(item =>
+        `<div class="flex justify-between bg-white p-2 rounded text-sm">
+            <span class="font-bold">${item.name}</span>
+            <span class="text-gray-500">${item.barcode}</span>
+        </div>`
+    ).join('');
+    box.classList.remove('hidden');
+    box.scrollIntoView({ behavior: 'smooth' });
+}
 </script>
 </body>
 </html>
